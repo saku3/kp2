@@ -1,8 +1,9 @@
 :root {
   --bg: #ffffff;
   --fg: #1f2328;
-  --border: #d0d7de;
-  --muted: #59636e;
+  --border: #e4e7eb;
+  --muted: #6b7480;
+  --hover: #f1f3f5;
   --code-bg: #f6f8fa;
   --accent: #1f883d;
   --accent-fg: #ffffff;
@@ -18,11 +19,11 @@ html, body, #root { height: 100%; margin: 0; }
 .app { display: flex; flex-direction: column; height: 100%; }
 
 .app-header {
-  display: flex; align-items: center; gap: 12px;
-  height: 40px; padding: 0 16px;
-  background: var(--header-bg); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 14px;
+  height: 44px; padding: 0 16px;
+  background: var(--bg); border-bottom: 1px solid var(--border);
 }
-.app-title { font-weight: 600; }
+.app-title { font-weight: 600; font-size: 14px; letter-spacing: -0.01em; }
 
 .panes { display: flex; flex: 1; min-height: 0; }
 .pane { min-width: 0; min-height: 0; }
@@ -70,3 +71,63 @@ html, body, #root { height: 100%; margin: 0; }
 .status-closed::before, .status-error::before { color: #f85149; }
 .terminal-host { flex: 1; min-height: 0; padding: 4px 0 0 6px; }
 .terminal-host .xterm { height: 100%; }
+
+
+/* Header breadcrumbs: [folder ▾] / [document ▾] */
+.crumbs { display: flex; align-items: center; gap: 2px; min-width: 0; font-size: 13px; }
+.crumb-wrap { position: relative; }
+.crumb {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 320px;
+  height: 28px; padding: 0 8px; border-radius: 6px;
+  border: 0; background: transparent; color: var(--fg); font: inherit; cursor: pointer;
+}
+.crumb:hover, .crumb.is-open { background: var(--hover); }
+.crumb:focus-visible { outline: 2px solid #0969da; outline-offset: 1px; }
+.crumb svg { color: var(--muted); flex: none; }
+.crumb-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumb-sep { color: #c3c8ce; padding: 0 2px; }
+.crumb-select { position: relative; }
+.crumb-select select { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+
+.popover {
+  position: absolute; top: 34px; left: 0; z-index: 10; width: 380px;
+  padding: 10px; border-radius: 8px;
+  background: var(--bg); border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+  font-size: 13px;
+}
+.popover-current {
+  padding: 2px 4px 8px; color: var(--muted);
+  font-family: Menlo, "SF Mono", Monaco, monospace; font-size: 11.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.popover-form { display: flex; gap: 6px; }
+.popover-form input {
+  flex: 1; min-width: 0; height: 30px; padding: 0 8px;
+  font: inherit; font-family: Menlo, "SF Mono", Monaco, monospace; font-size: 12px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--code-bg);
+}
+.popover-form input:focus { outline: none; border-color: #0969da; background: var(--bg); }
+.popover-form button {
+  height: 30px; padding: 0 12px; font: inherit; font-weight: 500;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg); cursor: pointer;
+}
+.popover-form button:hover { background: var(--hover); }
+.popover-error { margin: 8px 4px 0; color: #cf222e; font-size: 12px; line-height: 1.4; }
+.popover-list { list-style: none; margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid var(--border); }
+.popover-list button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%;
+  padding: 5px 6px; border: 0; border-radius: 6px; background: transparent; font: inherit; text-align: left; cursor: pointer;
+}
+.popover-list button:hover { background: var(--hover); }
+.popover-list-name { font-weight: 500; }
+.popover-list-path {
+  max-width: 100%; color: var(--muted); font-family: Menlo, "SF Mono", Monaco, monospace; font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.popover-action {
+  display: block; width: 100%; margin-top: 8px; padding: 6px 6px; text-align: left;
+  border: 0; border-top: 1px solid var(--border); border-radius: 0 0 6px 6px; background: transparent;
+  font: inherit; color: #0969da; cursor: pointer;
+}
+.popover-action:hover { background: var(--hover); }

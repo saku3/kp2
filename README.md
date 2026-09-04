@@ -30,13 +30,26 @@ npm run dev
 
 ブラウザで <http://127.0.0.1:5173/> を開いてください。
 
-本番ビルドを試す場合は `npm run build && npm start` です (Vite preview + ttyd、同じポート構成)。
+本番ビルドを試す場合は `npm run build && npm start` です (Vite preview + ttyd、同じポート構成)。preview では手順書のライブ更新は効きません。
 
 ## 手順書
 
-`docs/*.md` に置いた Markdown がすべて読み込まれます。デフォルトは `docs/getting-started.md` で、
-`?doc=<ファイル名>` で切り替えられます (複数ある場合はヘッダーにセレクタが出ます)。
-Vite の HMR が効くので、Markdown を編集すると即座に反映されます。
+デフォルトではリポジトリ内の `docs/*.md` を読み込みます。デフォルトは `docs/getting-started.md` です。
+Markdown は実行時にサーバーが読むので、編集すると即座に左ペインだけが更新され、ターミナルはそのまま維持されます。
+
+### 別のディレクトリの手順書を開く
+
+リポジトリ外の任意のディレクトリを 3 通りの方法で指定できます。
+
+1. **パスを入力**: ヘッダーのフォルダ名をクリックすると開くパネルに `~/notes/k8s` のようなパスを入れて **Open**。
+   サブディレクトリの `.md` も再帰的に一覧に出ます。最近開いたフォルダは同じパネルに並び、次回起動時も最後に開いた場所を復元します。
+2. **Choose folder…** (Chrome / Edge のみ): 同じパネルから OS のフォルダ選択ダイアログで選びます。この場合はブラウザが直接ファイルを読み、
+   サーバーは関与しません。変更は 2 秒ごとのポーリングで検知します。リロード後は「Re-open」を押すと再度読めるようになります (ブラウザの権限仕様)。
+3. **起動時の指定**: `DOCS_DIR=~/notes npm run dev` でデフォルトのディレクトリを変えられます。`?dir=<path>` を URL に付けても同じです。
+
+`?doc=<ファイル名>` で表示する手順書を選べます (ヘッダーのファイル名をクリックしても切り替えられます)。
+
+サーバーが返すのは指定ディレクトリ配下の `.md` ファイルだけで、`..` などで外に出ることはできません。
 
 コードブロックの言語が `bash` / `sh` / `shell` のときだけボタンが表示されます。
 
@@ -62,13 +75,16 @@ Vite の HMR が効くので、Markdown を編集すると即座に反映され�
 ## 構成
 
 ```
-docs/getting-started.md   手順書 (Markdown)
+docs/getting-started.md   手順書 (Markdown、デフォルトのディレクトリ)
 scripts/ttyd.sh           ttyd 起動スクリプト (localhost bind, shell 選択)
 vite.config.ts            dev/preview server の localhost bind と ttyd へのプロキシ
+vite-docs-plugin.ts       任意ディレクトリの .md を配信し、変更を HMR で通知するミドルウェア
 src/ttyd.ts               ttyd WebSocket プロトコルの最小クライアント
 src/TerminalPane.tsx      xterm.js + fit addon + resize/copy/paste
 src/Guide.tsx             Markdown レンダリングと Run / Insert ボタン
-src/App.tsx               2 ペインレイアウトと Markdown 選択
+src/docs.ts               手順書ストア (サーバー経由 / File System Access API の 2 系統)
+src/DocsPicker.tsx        ヘッダーのフォルダ / 手順書セレクタとフォルダ選択パネル
+src/App.tsx               2 ペインレイアウト
 ```
 
 ## ttyd を選んだ理由
