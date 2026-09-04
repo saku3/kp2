@@ -1,21 +1,26 @@
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { getDocs, subscribeDocs } from './docs';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { defaultDocName, getDocsState, loadDoc, subscribeDocs } from './docs';
+import { DocsPicker } from './DocsPicker';
 import { Guide } from './Guide';
 import { TerminalPane, type TerminalHandle } from './TerminalPane';
 
-const DEFAULT_DOC = 'getting-started.md';
-
 export function App() {
-  // Every markdown file under docs/ is bundled (and hot-updated); pick one with ?doc=<name>.md
-  const docs = useSyncExternalStore(subscribeDocs, getDocs);
-  const docNames = useMemo(() => Object.keys(docs).sort(), [docs]);
+  const docs = useSyncExternalStore(subscribeDocs, getDocsState);
 
-  const [docName, setDocName] = useState(() => {
-    const q = new URLSearchParams(location.search).get('doc');
-    if (q && q in docs) return q;
-    return DEFAULT_DOC in docs ? DEFAULT_DOC : docNames[0];
-  });
-  const markdown = docs[docName] ?? '# No docs found\n\nAdd a markdown file under `docs/`.';
+  // ?doc=<name> selects a document; fall back to the default when it is not in the directory.
+  const [requested, setRequested] = useState<string | null>(() => new URLSearchParams(location.search).get('doc'));
+  const docName = requested && docs.names.includes(requested) ? requested : defaultDocName(docs.names);
+
+  useEffect(() => {
+    if (docName && !(docName in docs.contents)) void loadDoc(docName);
+  }, [docName, docs.contents, docs.source]);
+
+  const selectDoc = (name: string) => {
+    setRequested(name);
+    const url = new URL(location.href);
+    url.searchParams.set('doc', name);
+    history.replaceState(null, '', url);
+  };
 
   const terminalRef = useRef<TerminalHandle | null>(null);
   const onReady = useCallback((h: TerminalHandle | null) => {
@@ -37,24 +42,17 @@ export function App() {
     t.focus();
   }, []);
 
-  const selectDoc = (name: string) => {
-    setDocName(name);
-    const url = new URL(location.href);
-    url.searchParams.set('doc', name);
-    history.replaceState(null, '', url);
-  };
+  let markdown: string;
+  if (docName && docName in docs.contents) markdown = docs.contents[docName];
+  else if (docs.loading || (docName && docs.source)) markdown = '_Loading…_';
+  else if (docs.source) markdown = `# No markdown files\n\nNo \`.md\` files were found in \`${docs.label}\`.`;
+  else markdown = '# No directory opened\n\nEnter a path above, or pick a folder.';
 
   return (
     <div className="app">
       <header className="app-header">
         <span className="app-title">Guide</span>
-        {docNames.length > 1 && (
-          <select value={docName} onChange={(e) => selectDoc(e.target.value)}>
-            {docNames.map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-        )}
+        <DocsPicker docs={docs} docName={docName} onSelectDoc={selectDoc} />
       </header>
       <main className="panes">
         <section className="pane pane-guide">

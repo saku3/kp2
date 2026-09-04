@@ -70,3 +70,12 @@ html, body, #root { height: 100%; margin: 0; }
 .status-closed::before, .status-error::before { color: #f85149; }
 .terminal-host { flex: 1; min-height: 0; padding: 4px 0 0 6px; }
 .terminal-host .xterm { height: 100%; }
+
+/* Docs picker (header) */
+.docs-picker { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 13px; }
+.docs-form { display: flex; align-items: center; gap: 4px; }
+.docs-form input { width: 280px; padding: 3px 6px; font-size: 12px; font-family: Menlo, monospace; border: 1px solid var(--border); border-radius: 4px; }
+.docs-form button, .docs-reopen { font-size: 12px; padding: 3px 8px; cursor: pointer; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+.docs-label { color: var(--muted); font-family: Menlo, monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; }
+.docs-error { color: #d1242f; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.docs-picker select { font-size: 12px; }
