@@ -1,5 +1,6 @@
 import { isValidElement, useEffect, useState, type ReactNode } from 'react';
-import Markdown from 'react-markdown';
+import Markdown, { defaultUrlTransform } from 'react-markdown';
+import { openInEditor, parseEditorLink } from './editor';
 import remarkGfm from 'remark-gfm';
 
 const RUNNABLE = new Set(['bash', 'sh', 'shell']);
@@ -70,7 +71,28 @@ export function Guide({ markdown, onInsert, onRun }: Props) {
     <article className="guide">
       <Markdown
         remarkPlugins={[remarkGfm]}
+        // Keep our own "vscode:" links; everything else gets react-markdown's default sanitizing.
+        urlTransform={(url) => (url.startsWith('vscode:') ? url : defaultUrlTransform(url))}
         components={{
+          a: ({ href = '', children, node: _node, ...rest }) => {
+            const editorLink = parseEditorLink(href);
+            if (!editorLink) return <a {...rest} href={href}>{children}</a>;
+            // "vscode:path#L12": opens the file in the editor pane (path relative to the workspace).
+            return (
+              <a
+                {...rest}
+                href={href}
+                className="link-editor"
+                title={`Open in editor: ${editorLink.file}${editorLink.line ? `:${editorLink.line}` : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void openInEditor(editorLink.file, editorLink.line);
+                }}
+              >
+                {children}
+              </a>
+            );
+          },
           pre: ({ children }) => {
             const parsed = parsePreChild(children);
             if (!parsed) return <pre>{children}</pre>;

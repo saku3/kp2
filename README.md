@@ -13,6 +13,7 @@ Browser
 
 - Node.js 20 以上
 - [ttyd](https://github.com/tsl0922/ttyd) 1.7 以上 (macOS: `brew install ttyd`)
+- 任意: [code-server](https://github.com/coder/code-server) (macOS: `brew install code-server`)。入っているとブラウザ版 VS Code のペインが出ます
 
 ## 起動
 
@@ -21,12 +22,13 @@ npm install
 npm run dev
 ```
 
-`npm run dev` は次の 2 つを同時に起動します。
+`npm run dev` は次の 3 つを同時に起動します。
 
 | プロセス | バインド先 | 役割 |
 | --- | --- | --- |
 | ttyd (`scripts/ttyd.sh`) | `127.0.0.1:7681` | PTY と shell (`$SHELL` → `/bin/zsh` → `/bin/bash` の順で選択) |
-| Vite dev server | `127.0.0.1:5173` | React UI の配信。`/ws` と `/token` を ttyd へプロキシ |
+| code-server (`scripts/code-server.sh`) | `127.0.0.1:7682` | ブラウザ版 VS Code。未インストールなら起動せず、エディタペインも出ません |
+| Vite dev server | `127.0.0.1:5173` | React UI の配信。`/ws` と `/token` を ttyd へ、`/code` を code-server へプロキシ |
 
 ブラウザで <http://127.0.0.1:5173/> を開いてください。
 
@@ -81,6 +83,24 @@ Choose folder… で選んだフォルダはパスをブラウザから取得で
 - **Run**: 表示されている内容をそのままターミナルへ送り、最後に Enter を送ります。複数行はそのまま順に実行されます。
 - **Insert**: 内容を入力するだけで Enter は送りません (bracketed paste で送るので、複数行でも 1 つの入力として編集できます)。
 
+## エディタ (code-server)
+
+code-server が動いていると、右ペインが上下に分かれて上にブラウザ版 VS Code、下にターミナルが出ます。境界はドラッグで動かせます。
+VS Code が開くフォルダ (ワークスペース) は既定でリポジトリのルートで、`KP2_WORKSPACE=~/src/myproject npm run dev` で変えられます。
+ターミナルとエディタは同じローカルファイルシステムを見ているので、「手順書を読む → エディタで編集 → Run で実行 → ターミナルで結果を見る」がブラウザの中で完結します。
+
+手順書からファイルを開くには `vscode:` リンクを書きます。パスはワークスペースからの相対パスで、`#L行番号` で行を指定できます。
+
+```markdown
+[main.rs を開く](vscode:src/main.rs#L120)
+```
+
+クリックすると Vite の `/api/open` が `code-server -r` を実行し、動いている VS Code の該当ファイルが開きます (ページのリロードはありません)。
+code-server が動いていないときは説明が表示されるだけです。
+
+code-server のユーザーデータは `~/.local/share/kp2/code-server` (または `$XDG_DATA_HOME/kp2/code-server`) に置きます。
+`code-server -r` が既存インスタンスを見つけるための IPC ソケットがここに作られるため、短いパスである必要があります。
+
 ## ターミナル操作
 
 - 通常のキー入力、Ctrl-C などの制御キーはそのまま shell に届きます
@@ -92,7 +112,7 @@ Choose folder… で選んだフォルダはパスをブラウザから取得で
 
 このツールはローカルマシン上で任意のコマンドを実行できます。
 
-- ttyd も Vite も **127.0.0.1 のみ** にバインドします。外部ネットワークには公開しないでください
+- ttyd も code-server も Vite も **127.0.0.1 のみ** にバインドします。外部ネットワークには公開しないでください。code-server は `--auth none` で起動しており、localhost 以外に公開すると誰でも操作できてしまいます
 - Run ボタンが送る内容は、画面に表示されているコードブロックの内容そのものです。隠しコマンドや変換はありません
 - Markdown を開いただけでは何も実行されません。実行は必ずボタン操作かキー入力によります
 - 認証はありません (MVP)。信頼できるローカル環境でのみ使ってください
@@ -102,14 +122,18 @@ Choose folder… で選んだフォルダはパスをブラウザから取得で
 ```
 docs/getting-started.md   手順書 (Markdown、デフォルトのディレクトリ)
 scripts/ttyd.sh           ttyd 起動スクリプト (localhost bind, shell 選択)
+scripts/code-server.sh    code-server 起動スクリプト (任意。未インストールなら何もしない)
 vite.config.ts            dev/preview server の localhost bind と ttyd へのプロキシ
 vite-docs-plugin.ts       任意ディレクトリの .md を配信し、変更を HMR で通知するミドルウェア
 vite-favorites-plugin.ts  favorites.json の読み書き API と変更通知
+vite-editor-plugin.ts     code-server の稼働確認 (/api/editor) とファイルを開く API (/api/open)
 src/ttyd.ts               ttyd WebSocket プロトコルの最小クライアント
 src/TerminalPane.tsx      xterm.js + fit addon + resize/copy/paste
 src/Guide.tsx             Markdown レンダリングと Run / Insert ボタン
 src/docs.ts               手順書ストア (サーバー経由 / File System Access API の 2 系統)、手順書の選択、お気に入り
 src/DocsPicker.tsx        ヘッダーのフォルダ / 手順書セレクタとフォルダ選択パネル
+src/editor.ts             エディタの稼働状態と vscode: リンクの解釈
+src/SplitPane.tsx         エディタ / ターミナルの上下分割 (ドラッグで比率変更)
 src/App.tsx               2 ペインレイアウト
 ```
 

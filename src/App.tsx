@@ -1,12 +1,15 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react';
 import { getDocsState, subscribeDocs } from './docs';
 import { DocsPicker } from './DocsPicker';
+import { useEditor } from './editor';
+import { SplitPane } from './SplitPane';
 import { Guide } from './Guide';
 import { TerminalPane, type TerminalHandle } from './TerminalPane';
 
 export function App() {
   const docs = useSyncExternalStore(subscribeDocs, getDocsState);
   const docName = docs.docName;
+  const editor = useEditor();
 
   const terminalRef = useRef<TerminalHandle | null>(null);
   const onReady = useCallback((h: TerminalHandle | null) => {
@@ -44,8 +47,16 @@ export function App() {
         <section className="pane pane-guide">
           <Guide markdown={markdown} onInsert={insert} onRun={run} />
         </section>
-        <section className="pane pane-terminal">
-          <TerminalPane onReady={onReady} />
+        <section className="pane pane-right">
+          {editor?.available ? (
+            <SplitPane
+              storageKey="kp2.editorSplit"
+              top={<iframe className="editor-frame" src={editor.url} title="Editor" allow="clipboard-read; clipboard-write" />}
+              bottom={<TerminalPane onReady={onReady} />}
+            />
+          ) : (
+            <TerminalPane onReady={onReady} />
+          )}
         </section>
       </main>
     </div>
