@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { getDocsState, selectDoc, subscribeDocs } from './docs';
 import { DocsPicker } from './DocsPicker';
+import { useEditor } from './editor';
+import { SplitPane } from './SplitPane';
 import { Guide } from './Guide';
 import { TerminalPane, type TerminalHandle } from './TerminalPane';
 
 export function App() {
   const docs = useSyncExternalStore(subscribeDocs, getDocsState);
   const docName = docs.docName;
+  const editor = useEditor();
 
   // Start each document at the top (switching via a link or the dropdown).
   const guideRef = useRef<HTMLElement>(null);
@@ -50,8 +53,16 @@ export function App() {
         <section className="pane pane-guide" ref={guideRef}>
           <Guide markdown={markdown} docName={docName} names={docs.names} onNavigate={selectDoc} onInsert={insert} onRun={run} />
         </section>
-        <section className="pane pane-terminal">
-          <TerminalPane onReady={onReady} />
+        <section className="pane pane-right">
+          {editor?.available ? (
+            <SplitPane
+              storageKey="kp2.editorSplit"
+              top={<iframe className="editor-frame" src={editor.url} title="Editor" allow="clipboard-read; clipboard-write" />}
+              bottom={<TerminalPane onReady={onReady} />}
+            />
+          ) : (
+            <TerminalPane onReady={onReady} />
+          )}
         </section>
       </main>
     </div>

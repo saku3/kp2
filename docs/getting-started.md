@@ -50,3 +50,11 @@ limactl shell ubuntu-26.04
 ```sh
 uname -a
 ```
+
+## エディタと連携する
+
+code-server が入っていると右ペインの上にブラウザ版 VS Code が出ます。手順書からファイルを開くこともできます。
+
+[README.md を開く](vscode:README.md) / [scripts/ttyd.sh の 20 行目を開く](vscode:scripts/ttyd.sh#L20)
+
+リンクの書き方は `[表示名](vscode:ワークスペースからの相対パス#L行番号)` です。

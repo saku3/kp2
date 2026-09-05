@@ -28,7 +28,7 @@ html, body, #root { height: 100%; margin: 0; }
 .panes { display: flex; flex: 1; min-height: 0; }
 .pane { min-width: 0; min-height: 0; }
 .pane-guide { flex: 0 0 45%; overflow-y: auto; border-right: 1px solid var(--border); }
-.pane-terminal { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; }
+.pane-right { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; }
 
 /* Guide */
 .guide { padding: 16px 24px 48px; max-width: 860px; line-height: 1.6; font-size: 15px; }
@@ -152,3 +152,12 @@ html, body, #root { height: 100%; margin: 0; }
 .crumb-notice { margin-left: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .popover-notice { margin: 8px 4px 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .star:focus-visible { outline: 2px solid #0969da; outline-offset: 1px; }
+
+/* Editor / terminal vertical split */
+.split { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.split-top { flex: 0 0 60%; min-height: 0; display: flex; }
+.split-bottom { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.split-divider { flex: none; height: 6px; background: #2b2b2b; border-top: 1px solid #3a3a3a; border-bottom: 1px solid #3a3a3a; cursor: row-resize; }
+.split-divider:hover, .split.is-dragging .split-divider { background: #0969da; }
+.split.is-dragging iframe { pointer-events: none; }
+.editor-frame { flex: 1; width: 100%; height: 100%; border: 0; background: #1e1e1e; }
