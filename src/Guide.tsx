@@ -1,4 +1,4 @@
-import { isValidElement, type ReactNode } from 'react';
+import { isValidElement, useEffect, useState, type ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -19,20 +19,34 @@ function CodeBlock({
   const runnable = RUNNABLE.has(lang);
   // The command shown is exactly the command sent: no hidden text, no transformation.
   const command = code.replace(/\n$/, '');
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1200);
+    return () => clearTimeout(t);
+  }, [copied]);
+  const copy = () => {
+    void navigator.clipboard.writeText(command).then(() => setCopied(true));
+  };
   return (
     <div className={`code-block${runnable ? ' runnable' : ''}`}>
       <div className="code-block-bar">
         <span className="code-lang">{lang || 'text'}</span>
-        {runnable && (
-          <span className="code-actions">
-            <button className="btn-insert" title="Type into terminal (no Enter)" onClick={() => onInsert(command)}>
-              Insert
-            </button>
-            <button className="btn-run" title="Type into terminal and press Enter" onClick={() => onRun(command)}>
-              Run
-            </button>
-          </span>
-        )}
+        <span className="code-actions">
+          <button className="btn-copy" title="Copy to clipboard" onClick={copy} aria-live="polite">
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          {runnable && (
+            <>
+              <button className="btn-insert" title="Type into terminal (no Enter)" onClick={() => onInsert(command)}>
+                Insert
+              </button>
+              <button className="btn-run" title="Type into terminal and press Enter" onClick={() => onRun(command)}>
+                Run
+              </button>
+            </>
+          )}
+        </span>
       </div>
       <pre>
         <code>{command}</code>

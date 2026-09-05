@@ -53,6 +53,7 @@ html, body, #root { height: 100%; margin: 0; }
   border: 1px solid var(--border); background: var(--bg); color: var(--fg);
 }
 .code-actions button:hover { filter: brightness(0.95); }
+.code-actions .btn-copy { min-width: 58px; color: var(--muted); }
 .code-actions .btn-run { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
 .code-block pre { margin: 0; padding: 12px; overflow-x: auto; }
 

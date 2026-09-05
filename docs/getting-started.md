@@ -26,7 +26,13 @@ done
 echo "edit me before running"
 ```
 
-`bash` / `sh` / `shell` 以外のコードブロックには Run ボタンは付きません。
+**Copy** はコードブロックの内容をクリップボードにコピーします。ターミナル以外の場所に貼り付けたいときに使います。
+
+```bash
+echo "copy me"
+```
+
+`bash` / `sh` / `shell` 以外のコードブロックには Run ボタンは付きませんが、Copy は使えます。
 
 ```json
 { "note": "this is not runnable" }
