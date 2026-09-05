@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { docsPlugin } from './vite-docs-plugin';
+import { favoritesPlugin } from './vite-favorites-plugin';
 
 // ttyd listens on 127.0.0.1:7681 (see scripts/ttyd.sh).
 // The browser talks only to this dev server; /ws and /token are proxied to ttyd.
@@ -15,7 +16,7 @@ const proxy = {
 const DOCS_DIR = process.env.DOCS_DIR ?? 'docs';
 
 export default defineConfig({
-  plugins: [react(), docsPlugin(DOCS_DIR)],
+  plugins: [react(), docsPlugin(DOCS_DIR), favoritesPlugin()],
   server: { host: '127.0.0.1', port: 5173, strictPort: true, proxy },
   preview: { host: '127.0.0.1', port: 5173, strictPort: true, proxy },
 });

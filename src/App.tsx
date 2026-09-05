@@ -1,26 +1,12 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { defaultDocName, getDocsState, loadDoc, subscribeDocs } from './docs';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { getDocsState, subscribeDocs } from './docs';
 import { DocsPicker } from './DocsPicker';
 import { Guide } from './Guide';
 import { TerminalPane, type TerminalHandle } from './TerminalPane';
 
 export function App() {
   const docs = useSyncExternalStore(subscribeDocs, getDocsState);
-
-  // ?doc=<name> selects a document; fall back to the default when it is not in the directory.
-  const [requested, setRequested] = useState<string | null>(() => new URLSearchParams(location.search).get('doc'));
-  const docName = requested && docs.names.includes(requested) ? requested : defaultDocName(docs.names);
-
-  useEffect(() => {
-    if (docName && !(docName in docs.contents)) void loadDoc(docName);
-  }, [docName, docs.contents, docs.source]);
-
-  const selectDoc = (name: string) => {
-    setRequested(name);
-    const url = new URL(location.href);
-    url.searchParams.set('doc', name);
-    history.replaceState(null, '', url);
-  };
+  const docName = docs.docName;
 
   const terminalRef = useRef<TerminalHandle | null>(null);
   const onReady = useCallback((h: TerminalHandle | null) => {
@@ -52,7 +38,7 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <span className="app-title">Guide</span>
-        <DocsPicker docs={docs} docName={docName} onSelectDoc={selectDoc} />
+        <DocsPicker docs={docs} />
       </header>
       <main className="panes">
         <section className="pane pane-guide">
