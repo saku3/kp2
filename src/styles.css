@@ -39,6 +39,7 @@ html, body, #root { height: 100%; margin: 0; }
 .guide table { border-collapse: collapse; }
 .guide th, .guide td { border: 1px solid var(--border); padding: 4px 10px; }
 .guide a { color: #0969da; }
+.guide a.link-missing { color: var(--muted); text-decoration: line-through; cursor: not-allowed; }
 
 .code-block { border: 1px solid var(--border); border-radius: 6px; margin: 12px 0; overflow: hidden; background: var(--code-bg); }
 .code-block-bar {

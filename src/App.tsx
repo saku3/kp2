@@ -1,5 +1,5 @@
-import { useCallback, useRef, useSyncExternalStore } from 'react';
-import { getDocsState, subscribeDocs } from './docs';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { getDocsState, selectDoc, subscribeDocs } from './docs';
 import { DocsPicker } from './DocsPicker';
 import { useEditor } from './editor';
 import { SplitPane } from './SplitPane';
@@ -10,6 +10,12 @@ export function App() {
   const docs = useSyncExternalStore(subscribeDocs, getDocsState);
   const docName = docs.docName;
   const editor = useEditor();
+
+  // Start each document at the top (switching via a link or the dropdown).
+  const guideRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    guideRef.current?.scrollTo({ top: 0 });
+  }, [docName]);
 
   const terminalRef = useRef<TerminalHandle | null>(null);
   const onReady = useCallback((h: TerminalHandle | null) => {
@@ -44,8 +50,8 @@ export function App() {
         <DocsPicker docs={docs} />
       </header>
       <main className="panes">
-        <section className="pane pane-guide">
-          <Guide markdown={markdown} onInsert={insert} onRun={run} />
+        <section className="pane pane-guide" ref={guideRef}>
+          <Guide markdown={markdown} docName={docName} names={docs.names} onNavigate={selectDoc} onInsert={insert} onRun={run} />
         </section>
         <section className="pane pane-right">
           {editor?.available ? (
