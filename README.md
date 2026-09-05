@@ -47,6 +47,30 @@ Markdown は実行時にサーバーが読むので、編集すると即座に�
    サーバーは関与しません。変更は 2 秒ごとのポーリングで検知します。リロード後は「Re-open」を押すと再度読めるようになります (ブラウザの権限仕様)。
 3. **起動時の指定**: `DOCS_DIR=~/notes npm run dev` でデフォルトのディレクトリを変えられます。`?dir=<path>` を URL に付けても同じです。
 
+### お気に入り (Pinned)
+
+よく使うフォルダや手順書はピン留めできます。ヘッダーの手順書名の横にある ☆ で今の手順書を、フォルダパネル内の ☆ でフォルダや最近の項目をピン留めし、パネルの **Pinned** から 1 クリックで開けます。
+
+保存先はブラウザではなくファイルです (ブラウザを変えても残り、手で編集したり dotfiles に入れたりできます)。
+
+| 優先順 | 場所 |
+| --- | --- |
+| 1 | `$KP2_CONFIG_DIR/favorites.json` |
+| 2 | `$XDG_CONFIG_HOME/kp2/favorites.json` |
+| 3 | `~/.config/kp2/favorites.json` |
+
+```json
+{
+  "favorites": [
+    { "dir": "~/notes/k8s" },
+    { "dir": "~/notes/k8s", "doc": "setup.md", "label": "K8s setup" }
+  ]
+}
+```
+
+`dir` は `~` 始まりでも構いません。`label` は省略可能で、表示名になります。ファイルを手で編集すると開いているブラウザにも即時反映されます。
+Choose folder… で選んだフォルダはパスをブラウザから取得できないためピン留めできません。パス入力で開き直してください。
+
 `?doc=<ファイル名>` で表示する手順書を選べます (ヘッダーのファイル名をクリックしても切り替えられます)。
 
 サーバーが返すのは指定ディレクトリ配下の `.md` ファイルだけで、`..` などで外に出ることはできません。
@@ -79,10 +103,11 @@ docs/getting-started.md   手順書 (Markdown、デフォルトのディレク�
 scripts/ttyd.sh           ttyd 起動スクリプト (localhost bind, shell 選択)
 vite.config.ts            dev/preview server の localhost bind と ttyd へのプロキシ
 vite-docs-plugin.ts       任意ディレクトリの .md を配信し、変更を HMR で通知するミドルウェア
+vite-favorites-plugin.ts  favorites.json の読み書き API と変更通知
 src/ttyd.ts               ttyd WebSocket プロトコルの最小クライアント
 src/TerminalPane.tsx      xterm.js + fit addon + resize/copy/paste
 src/Guide.tsx             Markdown レンダリングと Run / Insert ボタン
-src/docs.ts               手順書ストア (サーバー経由 / File System Access API の 2 系統)
+src/docs.ts               手順書ストア (サーバー経由 / File System Access API の 2 系統)、手順書の選択、お気に入り
 src/DocsPicker.tsx        ヘッダーのフォルダ / 手順書セレクタとフォルダ選択パネル
 src/App.tsx               2 ペインレイアウト
 ```

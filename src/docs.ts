@@ -11,16 +11,28 @@
 
 export type DocsSource = { kind: 'server'; dir: string } | { kind: 'fs'; handle: FileSystemDirectoryHandle };
 
+/** A pinned folder (dir only) or document (dir + doc). Stored server-side in favorites.json. */
+export interface Favorite {
+  dir: string;
+  doc?: string;
+  label?: string;
+}
+
 export interface DocsState {
   source: DocsSource | null;
   /** Human readable location: resolved directory path, or the picked folder name. */
   label: string;
   names: string[];
   contents: Record<string, string>;
+  /** The document currently shown (always one of `names` when names is non-empty). */
+  docName: string | null;
   loading: boolean;
   error: string | null;
   /** A previously picked folder that needs the user to click before it can be read again. */
   pendingHandle: FileSystemDirectoryHandle | null;
+  favorites: Favorite[];
+  /** Where favorites are stored on disk (shown in the UI so it can be edited by hand). */
+  favoritesPath: string;
 }
 
 interface Store {
@@ -31,6 +43,8 @@ interface Store {
   inflight: Set<string>;
   pollTimer: number | null;
   initialized: boolean;
+  /** Document to select once the next folder finishes loading. */
+  pendingDoc: string | null;
 }
 
 const DEFAULT_DOC = 'getting-started.md';
@@ -43,9 +57,12 @@ const initialState: DocsState = {
   label: '',
   names: [],
   contents: {},
+  docName: null,
   loading: false,
   error: null,
   pendingHandle: null,
+  favorites: [],
+  favoritesPath: '',
 };
 
 const store: Store = import.meta.hot?.data.store ?? {
@@ -56,6 +73,7 @@ const store: Store = import.meta.hot?.data.store ?? {
   inflight: new Set(),
   pollTimer: null,
   initialized: false,
+  pendingDoc: null,
 };
 if (import.meta.hot) import.meta.hot.data.store = store;
 
@@ -77,8 +95,34 @@ export function canPickDirectory(): boolean {
   return typeof window.showDirectoryPicker === 'function';
 }
 
-export function defaultDocName(names: string[]): string | null {
+function defaultDocName(names: string[]): string | null {
   return names.includes(DEFAULT_DOC) ? DEFAULT_DOC : (names[0] ?? null);
+}
+
+/** Apply a new file list, keeping (or picking) the shown document and loading it if needed. */
+function setNames(names: string[]): void {
+  const s = store.state;
+  const wanted = store.pendingDoc ?? s.docName;
+  store.pendingDoc = null;
+  const docName = wanted && names.includes(wanted) ? wanted : defaultDocName(names);
+  setState({ names, docName });
+  syncDocUrl(docName);
+  if (docName && !(docName in store.state.contents)) void loadDoc(docName);
+}
+
+/** Show a document from the current folder. */
+export function selectDoc(name: string): void {
+  if (!store.state.names.includes(name)) return;
+  setState({ docName: name });
+  syncDocUrl(name);
+  if (!(name in store.state.contents)) void loadDoc(name);
+}
+
+function syncDocUrl(name: string | null): void {
+  const url = new URL(location.href);
+  if (name) url.searchParams.set('doc', name);
+  else url.searchParams.delete('doc');
+  history.replaceState(null, '', url);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -115,16 +159,18 @@ function resetDocs(): void {
   }
 }
 
-/** Open a directory by path; the Vite server reads it. */
-export async function openServerDir(dir: string): Promise<void> {
+/** Open a directory by path; the Vite server reads it. Optionally select a document in it. */
+export async function openServerDir(dir: string, doc?: string): Promise<void> {
   resetDocs();
+  store.pendingDoc = doc ?? null;
   setState({ loading: true, error: null, pendingHandle: null });
   try {
     const res = await fetch(`/api/docs?dir=${encodeURIComponent(dir)}`);
     const body = await res.json();
     if (!res.ok) throw new Error(body.error ?? res.statusText);
     const source: DocsSource = { kind: 'server', dir: body.dir };
-    setState({ source, label: body.dir, names: body.names, contents: {}, loading: false });
+    setState({ source, label: body.dir, contents: {}, loading: false });
+    setNames(body.names);
     pushRecentDir(body.dir);
     localStorage.setItem(LS_SOURCE, JSON.stringify({ kind: 'server', dir: body.dir }));
     syncUrl(body.dir);
@@ -161,7 +207,8 @@ async function openHandle(handle: FileSystemDirectoryHandle): Promise<void> {
   setState({ loading: true, error: null, pendingHandle: null });
   try {
     const names = await scanHandle(handle);
-    setState({ source: { kind: 'fs', handle }, label: `📁 ${handle.name}`, names, contents: {}, loading: false });
+    setState({ source: { kind: 'fs', handle }, label: handle.name, contents: {}, loading: false });
+    setNames(names);
     await idbSet('dirHandle', handle);
     localStorage.setItem(LS_SOURCE, JSON.stringify({ kind: 'fs' }));
     syncUrl(null);
@@ -191,7 +238,7 @@ async function pollHandle(handle: FileSystemDirectoryHandle): Promise<void> {
   if (s.source?.kind !== 'fs' || s.source.handle !== handle) return;
   try {
     const names = await scanHandle(handle);
-    if (names.join('\n') !== s.names.join('\n')) setState({ names });
+    if (names.join('\n') !== s.names.join('\n')) setNames(names);
     for (const name of Object.keys(s.contents)) {
       const fh = store.fileHandles.get(name);
       if (!fh) continue;
@@ -238,7 +285,7 @@ async function refreshServerList(dir: string): Promise<void> {
   if (!res.ok) return;
   const body = await res.json();
   const s = store.state;
-  if (s.source?.kind === 'server' && s.source.dir === dir) setState({ names: body.names });
+  if (s.source?.kind === 'server' && s.source.dir === dir) setNames(body.names);
 }
 
 // Live updates from the Vite server (dev mode only).
@@ -258,6 +305,63 @@ import.meta.hot?.on('docs:changed', (data: { dir: string; name: string; event: s
 });
 
 // ---------------------------------------------------------------------------------------
+// Favorites (server-side favorites.json)
+
+function sameFavorite(a: Favorite, b: Favorite): boolean {
+  return a.dir === b.dir && (a.doc ?? '') === (b.doc ?? '');
+}
+
+export function isFavorite(fav: Favorite): boolean {
+  return store.state.favorites.some((f) => sameFavorite(f, fav));
+}
+
+/** The current folder / document as a favorite candidate, or null when it cannot be pinned. */
+export function currentFavorite(withDoc: boolean): Favorite | null {
+  const s = store.state;
+  if (s.source?.kind !== 'server') return null; // picked folders have no path to store
+  if (!withDoc) return { dir: s.source.dir };
+  return s.docName ? { dir: s.source.dir, doc: s.docName } : null;
+}
+
+export async function loadFavorites(): Promise<void> {
+  try {
+    const res = await fetch('/api/favorites');
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? res.statusText);
+    setState({ favorites: body.favorites, favoritesPath: body.path });
+  } catch (err) {
+    setState({ error: `Cannot load favorites: ${(err as Error).message}` });
+  }
+}
+
+async function saveFavorites(favorites: Favorite[]): Promise<void> {
+  try {
+    const res = await fetch('/api/favorites', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ favorites }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ?? res.statusText);
+    setState({ favorites: body.favorites, favoritesPath: body.path });
+  } catch (err) {
+    setState({ error: `Cannot save favorites: ${(err as Error).message}` });
+  }
+}
+
+export function toggleFavorite(fav: Favorite): Promise<void> {
+  const list = store.state.favorites;
+  const next = isFavorite(fav) ? list.filter((f) => !sameFavorite(f, fav)) : [...list, fav];
+  return saveFavorites(next);
+}
+
+export function openFavorite(fav: Favorite): Promise<void> {
+  return openServerDir(fav.dir, fav.doc);
+}
+
+import.meta.hot?.on('favorites:changed', () => void loadFavorites());
+
+// ---------------------------------------------------------------------------------------
 // Startup: restore the last source (URL ?dir= wins, then localStorage, then the server default)
 
 function syncUrl(dir: string | null): void {
@@ -268,7 +372,10 @@ function syncUrl(dir: string | null): void {
 }
 
 async function initDocs(): Promise<void> {
-  const fromUrl = new URLSearchParams(location.search).get('dir');
+  void loadFavorites();
+  const params = new URLSearchParams(location.search);
+  store.pendingDoc = params.get('doc');
+  const fromUrl = params.get('dir');
   if (fromUrl) return openServerDir(fromUrl);
 
   let saved: { kind: string; dir?: string } | null = null;
@@ -281,7 +388,7 @@ async function initDocs(): Promise<void> {
     const handle = await idbGet<FileSystemDirectoryHandle>('dirHandle').catch(() => null);
     if (handle) {
       if ((await handle.queryPermission({ mode: 'read' })) === 'granted') return openHandle(handle);
-      setState({ pendingHandle: handle, label: `📁 ${handle.name}` });
+      setState({ pendingHandle: handle, label: handle.name });
       return;
     }
   }

@@ -1,17 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   canPickDirectory,
+  currentFavorite,
   getRecentDirs,
+  isFavorite,
+  openFavorite,
   openServerDir,
   pickDirectory,
   reopenPendingHandle,
+  selectDoc,
+  toggleFavorite,
   type DocsState,
+  type Favorite,
 } from './docs';
 
 interface Props {
   docs: DocsState;
-  docName: string | null;
-  onSelectDoc: (name: string) => void;
 }
 
 const FolderIcon = () => (
@@ -19,11 +23,44 @@ const FolderIcon = () => (
     <path d="M1.5 3.5A1 1 0 0 1 2.5 2.5h3.2l1.6 1.5h6.2a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" stroke="currentColor" strokeWidth="1.2" />
   </svg>
 );
+const DocIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M4 1.5h5l3.5 3.5v9.5h-8.5z M9 1.5v3.5h3.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+  </svg>
+);
 const Chevron = () => (
   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
     <path d="M2 3.5 5 6.5 8 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+const Star = ({ filled }: { filled: boolean }) => (
+  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+    <path
+      d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+/** Star button that pins/unpins a folder or document. Disabled when the source has no path. */
+function StarButton({ fav, what }: { fav: Favorite | null; what: string }) {
+  const on = fav ? isFavorite(fav) : false;
+  return (
+    <button
+      type="button"
+      className={`star${on ? ' is-on' : ''}`}
+      disabled={!fav}
+      onClick={() => fav && void toggleFavorite(fav)}
+      title={!fav ? `Only folders opened by path can be pinned` : on ? `Unpin ${what}` : `Pin ${what}`}
+      aria-pressed={on}
+    >
+      <Star filled={on} />
+    </button>
+  );
+}
 
 /** Short display name of the current source: last path segment, or the picked folder's name. */
 function shortLabel(docs: DocsState): string {
@@ -33,12 +70,16 @@ function shortLabel(docs: DocsState): string {
   return docs.label.split('/').filter(Boolean).pop() ?? docs.label;
 }
 
-export function DocsPicker({ docs, docName, onSelectDoc }: Props) {
+const basename = (p: string) => p.split('/').filter(Boolean).pop() ?? p;
+
+export function DocsPicker({ docs }: Props) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const popRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recents = getRecentDirs().filter((d) => d !== docs.label);
+  const folderFav = currentFavorite(false);
+  const docFav = currentFavorite(true);
 
   // Close on outside click / Escape; focus the input when opened.
   useEffect(() => {
@@ -83,7 +124,10 @@ export function DocsPicker({ docs, docName, onSelectDoc }: Props) {
         {open && (
           <div className="popover" role="dialog" aria-label="Choose folder">
             {docs.label && (
-              <div className="popover-current" title={docs.label}>{docs.label}</div>
+              <div className="popover-current">
+                <span className="popover-current-path" title={docs.label}>{docs.label}</span>
+                <StarButton fav={folderFav} what="this folder" />
+              </div>
             )}
 
             <form className="popover-form" onSubmit={submit}>
@@ -98,17 +142,44 @@ export function DocsPicker({ docs, docName, onSelectDoc }: Props) {
             </form>
             {docs.error && <p className="popover-error">{docs.error}</p>}
 
+            {docs.favorites.length > 0 && (
+              <section className="popover-section">
+                <h3 title={docs.favoritesPath}>Pinned</h3>
+                <ul className="popover-list">
+                  {docs.favorites.map((f) => (
+                    <li key={`${f.dir}\0${f.doc ?? ''}`} className="popover-row">
+                      <button type="button" onClick={() => void openFavorite(f)} title={f.doc ? `${f.dir}/${f.doc}` : f.dir}>
+                        {f.doc ? <DocIcon /> : <FolderIcon />}
+                        <span className="popover-list-text">
+                          <span className="popover-list-name">{f.label ?? (f.doc ?? basename(f.dir))}</span>
+                          <span className="popover-list-path">{f.doc ? `${basename(f.dir)} · ${f.dir}` : f.dir}</span>
+                        </span>
+                      </button>
+                      <StarButton fav={f} what={f.doc ? 'this document' : 'this folder'} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {recents.length > 0 && (
-              <ul className="popover-list">
-                {recents.map((d) => (
-                  <li key={d}>
-                    <button type="button" onClick={() => void openServerDir(d)} title={d}>
-                      <span className="popover-list-name">{d.split('/').filter(Boolean).pop()}</span>
-                      <span className="popover-list-path">{d}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <section className="popover-section">
+                <h3>Recent</h3>
+                <ul className="popover-list">
+                  {recents.map((d) => (
+                    <li key={d} className="popover-row">
+                      <button type="button" onClick={() => void openServerDir(d)} title={d}>
+                        <FolderIcon />
+                        <span className="popover-list-text">
+                          <span className="popover-list-name">{basename(d)}</span>
+                          <span className="popover-list-path">{d}</span>
+                        </span>
+                      </button>
+                      <StarButton fav={{ dir: d }} what="this folder" />
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
 
             {docs.pendingHandle && (
@@ -125,18 +196,19 @@ export function DocsPicker({ docs, docName, onSelectDoc }: Props) {
         )}
       </div>
 
-      {docs.names.length > 0 && docName && (
+      {docs.names.length > 0 && docs.docName && (
         <>
           <span className="crumb-sep" aria-hidden="true">/</span>
           <label className="crumb crumb-select">
-            <span className="crumb-text">{docName}</span>
+            <span className="crumb-text">{docs.docName}</span>
             <Chevron />
-            <select value={docName} onChange={(e) => onSelectDoc(e.target.value)} aria-label="Document">
+            <select value={docs.docName} onChange={(e) => selectDoc(e.target.value)} aria-label="Document">
               {docs.names.map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
           </label>
+          <StarButton fav={docFav} what="this document" />
         </>
       )}
     </nav>
