@@ -390,9 +390,9 @@ function syncUrl(dir: string | null): void {
 async function initDocs(): Promise<void> {
   void loadFavorites();
   const params = new URLSearchParams(location.search);
-  store.pendingDoc = params.get('doc');
+  const doc = params.get('doc') ?? undefined;
   const fromUrl = params.get('dir');
-  if (fromUrl) return openServerDir(fromUrl);
+  if (fromUrl) return openServerDir(fromUrl, doc);
 
   let saved: { kind: string; dir?: string } | null = null;
   try {
@@ -403,12 +403,15 @@ async function initDocs(): Promise<void> {
   if (saved?.kind === 'fs' && canPickDirectory()) {
     const handle = await idbGet<FileSystemDirectoryHandle>('dirHandle').catch(() => null);
     if (handle) {
-      if ((await handle.queryPermission({ mode: 'read' })) === 'granted') return openHandle(handle);
+      if ((await handle.queryPermission({ mode: 'read' })) === 'granted') {
+        store.pendingDoc = doc ?? null;
+        return openHandle(handle);
+      }
       setState({ pendingHandle: handle, label: handle.name });
       return;
     }
   }
-  return openServerDir(saved?.kind === 'server' && saved.dir ? saved.dir : '');
+  return openServerDir(saved?.kind === 'server' && saved.dir ? saved.dir : '', doc);
 }
 
 if (!store.initialized) {
