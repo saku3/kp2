@@ -7,8 +7,10 @@ import {
   openFavorite,
   openServerDir,
   pickDirectory,
+  PICKED_FOLDER_NOTICE,
   reopenPendingHandle,
   selectDoc,
+  showNotice,
   toggleFavorite,
   type DocsState,
   type Favorite,
@@ -45,16 +47,15 @@ const Star = ({ filled }: { filled: boolean }) => (
   </svg>
 );
 
-/** Star button that pins/unpins a folder or document. Disabled when the source has no path. */
+/** Star button that pins/unpins a folder or document. Explains itself when there is no path to pin. */
 function StarButton({ fav, what }: { fav: Favorite | null; what: string }) {
   const on = fav ? isFavorite(fav) : false;
   return (
     <button
       type="button"
-      className={`star${on ? ' is-on' : ''}`}
-      disabled={!fav}
-      onClick={() => fav && void toggleFavorite(fav)}
-      title={!fav ? `Only folders opened by path can be pinned` : on ? `Unpin ${what}` : `Pin ${what}`}
+      className={`star${on ? ' is-on' : ''}${fav ? '' : ' is-unavailable'}`}
+      onClick={() => (fav ? void toggleFavorite(fav) : showNotice(PICKED_FOLDER_NOTICE))}
+      title={!fav ? PICKED_FOLDER_NOTICE : on ? `Unpin ${what}` : `Pin ${what}`}
       aria-pressed={on}
     >
       <Star filled={on} />
@@ -153,6 +154,7 @@ export function DocsPicker({ docs }: Props) {
               <button type="submit" disabled={docs.loading}>Open</button>
             </form>
             {docs.error && <p className="popover-error">{docs.error}</p>}
+            {docs.notice && <p className="popover-notice">{docs.notice}</p>}
 
             {docs.favorites.length > 0 && (
               <section className="popover-section">
@@ -227,6 +229,7 @@ export function DocsPicker({ docs }: Props) {
             </select>
           </label>
           <StarButton fav={docFav} what="this document" />
+          {docs.notice && !open && <span className="crumb-notice">{docs.notice}</span>}
         </>
       )}
     </nav>

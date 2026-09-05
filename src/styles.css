@@ -148,5 +148,7 @@ html, body, #root { height: 100%; margin: 0; }
 }
 .star:hover:not(:disabled) { background: var(--hover); color: var(--fg); }
 .star.is-on { color: #bf8700; }
-.star:disabled { color: #d8dce1; cursor: default; }
+.star.is-unavailable { color: #d8dce1; }
+.crumb-notice { margin-left: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.popover-notice { margin: 8px 4px 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .star:focus-visible { outline: 2px solid #0969da; outline-offset: 1px; }

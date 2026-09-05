@@ -30,6 +30,8 @@ export interface DocsState {
   error: string | null;
   /** A previously picked folder that needs the user to click before it can be read again. */
   pendingHandle: FileSystemDirectoryHandle | null;
+  /** Short explanatory message (not an error), cleared automatically. */
+  notice: string | null;
   favorites: Favorite[];
   /** Where favorites are stored on disk (shown in the UI so it can be edited by hand). */
   favoritesPath: string;
@@ -61,6 +63,7 @@ const initialState: DocsState = {
   loading: false,
   error: null,
   pendingHandle: null,
+  notice: null,
   favorites: [],
   favoritesPath: '',
 };
@@ -75,6 +78,9 @@ const store: Store = import.meta.hot?.data.store ?? {
   initialized: false,
   pendingDoc: null,
 };
+// A store left behind by an older version of this module may lack newer fields.
+store.state = { ...initialState, ...store.state };
+store.pendingDoc ??= null;
 if (import.meta.hot) import.meta.hot.data.store = store;
 
 function setState(patch: Partial<DocsState>): void {
@@ -349,6 +355,16 @@ async function saveFavorites(favorites: Favorite[]): Promise<void> {
   }
 }
 
+let noticeTimer: number | null = null;
+export function showNotice(message: string): void {
+  setState({ notice: message });
+  if (noticeTimer !== null) clearTimeout(noticeTimer);
+  noticeTimer = window.setTimeout(() => setState({ notice: null }), 5000);
+}
+
+export const PICKED_FOLDER_NOTICE =
+  'This folder was chosen with the browser picker, so its path is unknown. Open it by path to pin it.';
+
 export function toggleFavorite(fav: Favorite): Promise<void> {
   const list = store.state.favorites;
   const next = isFavorite(fav) ? list.filter((f) => !sameFavorite(f, fav)) : [...list, fav];
@@ -374,9 +390,9 @@ function syncUrl(dir: string | null): void {
 async function initDocs(): Promise<void> {
   void loadFavorites();
   const params = new URLSearchParams(location.search);
-  store.pendingDoc = params.get('doc');
+  const doc = params.get('doc') ?? undefined;
   const fromUrl = params.get('dir');
-  if (fromUrl) return openServerDir(fromUrl);
+  if (fromUrl) return openServerDir(fromUrl, doc);
 
   let saved: { kind: string; dir?: string } | null = null;
   try {
@@ -387,12 +403,15 @@ async function initDocs(): Promise<void> {
   if (saved?.kind === 'fs' && canPickDirectory()) {
     const handle = await idbGet<FileSystemDirectoryHandle>('dirHandle').catch(() => null);
     if (handle) {
-      if ((await handle.queryPermission({ mode: 'read' })) === 'granted') return openHandle(handle);
+      if ((await handle.queryPermission({ mode: 'read' })) === 'granted') {
+        store.pendingDoc = doc ?? null;
+        return openHandle(handle);
+      }
       setState({ pendingHandle: handle, label: handle.name });
       return;
     }
   }
-  return openServerDir(saved?.kind === 'server' && saved.dir ? saved.dir : '');
+  return openServerDir(saved?.kind === 'server' && saved.dir ? saved.dir : '', doc);
 }
 
 if (!store.initialized) {
