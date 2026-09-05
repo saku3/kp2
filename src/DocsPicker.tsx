@@ -72,6 +72,18 @@ function shortLabel(docs: DocsState): string {
 
 const basename = (p: string) => p.split('/').filter(Boolean).pop() ?? p;
 
+/** Group "a/b/c.md" style names by their folder for <optgroup>; top-level files come first. */
+function groupByFolder(names: string[]): { folder: string; items: { name: string; file: string }[] }[] {
+  const groups = new Map<string, { name: string; file: string }[]>();
+  for (const name of names) {
+    const i = name.lastIndexOf('/');
+    const folder = i === -1 ? '' : name.slice(0, i);
+    const file = i === -1 ? name : name.slice(i + 1);
+    (groups.get(folder) ?? groups.set(folder, []).get(folder)!).push({ name, file });
+  }
+  return [...groups].sort(([a], [b]) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))).map(([folder, items]) => ({ folder, items }));
+}
+
 export function DocsPicker({ docs }: Props) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -203,9 +215,15 @@ export function DocsPicker({ docs }: Props) {
             <span className="crumb-text">{docs.docName}</span>
             <Chevron />
             <select value={docs.docName} onChange={(e) => selectDoc(e.target.value)} aria-label="Document">
-              {docs.names.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
+              {groupByFolder(docs.names).map(({ folder, items }) =>
+                folder === '' ? (
+                  items.map(({ name, file }) => <option key={name} value={name}>{file}</option>)
+                ) : (
+                  <optgroup key={folder} label={folder + '/'}>
+                    {items.map(({ name, file }) => <option key={name} value={name}>{file}</option>)}
+                  </optgroup>
+                ),
+              )}
             </select>
           </label>
           <StarButton fav={docFav} what="this document" />
