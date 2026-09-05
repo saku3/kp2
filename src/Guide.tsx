@@ -6,8 +6,30 @@ const RUNNABLE = new Set(['bash', 'sh', 'shell']);
 
 interface Props {
   markdown: string;
+  /** Relative path of the document being shown, e.g. "k8s/setup.md". */
+  docName: string | null;
+  /** All documents in the current folder; relative links to one of them switch documents. */
+  names: string[];
+  onNavigate: (name: string) => void;
   onInsert: (command: string) => void;
   onRun: (command: string) => void;
+}
+
+/** Resolve an href relative to the current document within the folder; null if it is not a local .md file. */
+export function resolveDocLink(docName: string | null, href: string): string | null {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('/') || href.startsWith('#')) return null;
+  const path = href.split(/[?#]/)[0];
+  if (!path.endsWith('.md')) return null;
+  const base = docName?.includes('/') ? docName.slice(0, docName.lastIndexOf('/')).split('/') : [];
+  const out = [...base];
+  for (const seg of path.split('/')) {
+    if (seg === '' || seg === '.') continue;
+    if (seg === '..') {
+      if (out.length === 0) return path; // escapes the folder: reported as-is (never in `names`)
+      out.pop();
+    } else out.push(seg);
+  }
+  return decodeURIComponent(out.join('/'));
 }
 
 function CodeBlock({
@@ -65,12 +87,43 @@ function parsePreChild(children: ReactNode): { lang: string; code: string } | nu
   return { lang, code };
 }
 
-export function Guide({ markdown, onInsert, onRun }: Props) {
+export function Guide({ markdown, docName, names, onNavigate, onInsert, onRun }: Props) {
   return (
     <article className="guide">
       <Markdown
         remarkPlugins={[remarkGfm]}
         components={{
+          a: ({ href = '', children, node: _node, ...rest }) => {
+            const target = resolveDocLink(docName, href);
+            if (target !== null && !names.includes(target)) {
+              // A .md link inside the folder that does not exist: do not leave the app.
+              return (
+                <a {...rest} href={href} className="link-missing" title={`Not found in this folder: ${target}`} onClick={(e) => e.preventDefault()}>
+                  {children}
+                </a>
+              );
+            }
+            if (target !== null) {
+              return (
+                <a
+                  {...rest}
+                  href={`?doc=${encodeURIComponent(target)}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigate(target);
+                  }}
+                >
+                  {children}
+                </a>
+              );
+            }
+            const external = /^https?:/i.test(href);
+            return (
+              <a {...rest} href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
+                {children}
+              </a>
+            );
+          },
           pre: ({ children }) => {
             const parsed = parsePreChild(children);
             if (!parsed) return <pre>{children}</pre>;
