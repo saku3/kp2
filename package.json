@@ -4,12 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail -n ttyd,code,vite -c yellow,magenta,cyan \"npm:ttyd\" \"npm:code-server\" \"npm:vite\"",
+    "dev": "concurrently --kill-others-on-fail -n server,vite -c yellow,cyan \"npm:server\" \"npm:vite\"",
     "vite": "vite",
-    "ttyd": "sh scripts/ttyd.sh",
-    "build": "tsc --noEmit && vite build",
-    "start": "concurrently --kill-others-on-fail -n ttyd,code,vite -c yellow,magenta,cyan \"npm:ttyd\" \"npm:code-server\" \"vite preview\"",
-    "code-server": "sh scripts/code-server.sh"
+    "server": "cargo run --quiet --manifest-path server/Cargo.toml -- --port 7681 --docs docs",
+    "build": "tsc --noEmit && vite build && cargo build --release --manifest-path server/Cargo.toml",
+    "start": "server/target/release/kp2"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",
