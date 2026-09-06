@@ -6,38 +6,60 @@
 
 ```
 Browser
-  Markdown ──Run──▶ xterm.js ──WebSocket (/ws, proxied by Vite)──▶ ttyd ──▶ PTY ──▶ $SHELL
+  Markdown ──Run──▶ xterm.js ──WebSocket /ws──▶ kp2 (Rust) ──▶ PTY ──▶ $SHELL
+                                                 │
+                                                 └─ code-server (任意) ──▶ ブラウザ版 VS Code
 ```
+
+backend は Rust 製の単一バイナリ `kp2` (`server/`) です。ttyd と同じ WebSocket プロトコルを話すので、フロントエンドの xterm.js クライアントはそのまま使っています。
 
 ## 必要なもの
 
-- Node.js 20 以上
-- [ttyd](https://github.com/tsl0922/ttyd) 1.7 以上 (macOS: `brew install ttyd`)
+- Node.js 20 以上 (フロントエンドのビルドと開発用)
+- Rust (stable)
 - 任意: [code-server](https://github.com/coder/code-server) (macOS: `brew install code-server`)。入っているとブラウザ版 VS Code のペインが出ます
 
 ## 起動
+
+### 開発
 
 ```bash
 npm install
 npm run dev
 ```
 
-`npm run dev` は次の 3 つを同時に起動します。
+`npm run dev` は次の 2 つを同時に起動します。
 
 | プロセス | バインド先 | 役割 |
 | --- | --- | --- |
-| ttyd (`scripts/ttyd.sh`) | `127.0.0.1:7681` | PTY と shell (`$SHELL` → `/bin/zsh` → `/bin/bash` の順で選択) |
-| code-server (`scripts/code-server.sh`) | `127.0.0.1:7682` | ブラウザ版 VS Code。未インストールなら起動せず、エディタペインも出ません |
-| Vite dev server | `127.0.0.1:5173` | React UI の配信。`/ws` と `/token` を ttyd へ、`/code` を code-server へプロキシ |
+| kp2 (`cargo run`) | `127.0.0.1:7681` | PTY と shell、手順書とお気に入りの API、code-server の起動 |
+| Vite dev server | `127.0.0.1:5173` | React UI の配信。`/ws` `/token` `/api` を kp2 へプロキシ |
 
 ブラウザで <http://127.0.0.1:5173/> を開いてください。
 
-本番ビルドを試す場合は `npm run build && npm start` です (Vite preview + ttyd、同じポート構成)。preview では手順書のライブ更新は効きません。
+### 単一バイナリで動かす
+
+```bash
+npm run build   # tsc + vite build + cargo build --release
+npm start       # = server/target/release/kp2
+```
+
+`kp2` はビルド済みの UI を同梱しているので、Node も Vite も不要で <http://127.0.0.1:5173/> にそのまま出ます。
+
+```
+kp2 [--port 5173] [--docs docs] [--workspace .] [--no-editor] [--editor-port 7682]
+```
+
+- `--docs`: 既定の手順書フォルダ
+- `--workspace`: ターミナルの開始ディレクトリで、code-server が開くフォルダ
+- `--no-editor`: code-server が入っていても起動しない
+
+shell は `$SHELL` → `/bin/zsh` → `/bin/bash` の順で選び、ログインシェルとして起動します。
 
 ## 手順書
 
 デフォルトではリポジトリ内の `docs/*.md` を読み込みます。デフォルトは `docs/getting-started.md` です。
-Markdown は実行時にサーバーが読むので、編集すると即座に左ペインだけが更新され、ターミナルはそのまま維持されます。
+Markdown は実行時にサーバーが読み、変更は server-sent events で通知されるので、編集すると即座に左ペインだけが更新され、ターミナルはそのまま維持されます。
 
 ### 別のディレクトリの手順書を開く
 
@@ -47,7 +69,7 @@ Markdown は実行時にサーバーが読むので、編集すると即座に�
    サブディレクトリの `.md` も再帰的に一覧に出ます。最近開いたフォルダは同じパネルに並び、次回起動時も最後に開いた場所を復元します。
 2. **Choose folder…** (Chrome / Edge のみ): 同じパネルから OS のフォルダ選択ダイアログで選びます。この場合はブラウザが直接ファイルを読み、
    サーバーは関与しません。変更は 2 秒ごとのポーリングで検知します。リロード後は「Re-open」を押すと再度読めるようになります (ブラウザの権限仕様)。
-3. **起動時の指定**: `DOCS_DIR=~/notes npm run dev` でデフォルトのディレクトリを変えられます。`?dir=<path>` を URL に付けても同じです。
+3. **起動時の指定**: `kp2 --docs ~/notes` でデフォルトのディレクトリを変えられます。`?dir=<path>` を URL に付けても同じです。
 
 ### お気に入り (Pinned)
 
@@ -94,7 +116,7 @@ Markdown 内の相対リンク (`[次へ](./ops/backup.md)` や `[戻る](../int
 ## エディタ (code-server)
 
 code-server が動いていると、右ペインが上下に分かれて上にブラウザ版 VS Code、下にターミナルが出ます。境界はドラッグで動かせます。
-VS Code が開くフォルダ (ワークスペース) は既定でリポジトリのルートで、`KP2_WORKSPACE=~/src/myproject npm run dev` で変えられます。
+VS Code が開くフォルダ (ワークスペース) は既定でカレントディレクトリで、`kp2 --workspace ~/src/myproject` で変えられます。
 ターミナルとエディタは同じローカルファイルシステムを見ているので、「手順書を読む → エディタで編集 → Run で実行 → ターミナルで結果を見る」がブラウザの中で完結します。
 
 手順書からファイルを開くには `vscode:` リンクを書きます。パスはワークスペースからの相対パスで、`#L行番号` で行を指定できます。
@@ -103,7 +125,7 @@ VS Code が開くフォルダ (ワークスペース) は既定でリポジト�
 [main.rs を開く](vscode:src/main.rs#L120)
 ```
 
-クリックすると Vite の `/api/open` が `code-server -r` を実行し、動いている VS Code の該当ファイルが開きます (ページのリロードはありません)。
+クリックすると kp2 の `/api/open` が `code-server -r` を実行し、動いている VS Code の該当ファイルが開きます (ページのリロードはありません)。
 code-server が動いていないときは説明が表示されるだけです。
 
 code-server のユーザーデータは `~/.local/share/kp2/code-server` (または `$XDG_DATA_HOME/kp2/code-server`) に置きます。
@@ -120,7 +142,8 @@ code-server のユーザーデータは `~/.local/share/kp2/code-server` (また
 
 このツールはローカルマシン上で任意のコマンドを実行できます。
 
-- ttyd も code-server も Vite も **127.0.0.1 のみ** にバインドします。外部ネットワークには公開しないでください。code-server は `--auth none` で起動しており、localhost 以外に公開すると誰でも操作できてしまいます
+- kp2 も code-server も Vite も **127.0.0.1 のみ** にバインドします。外部ネットワークには公開しないでください。code-server は `--auth none` で起動しており、localhost 以外に公開すると誰でも操作できてしまいます
+- ターミナルの WebSocket は `Origin` ヘッダを検証し、localhost 以外のページからの接続を拒否します
 - Run ボタンが送る内容は、画面に表示されているコードブロックの内容そのものです。隠しコマンドや変換はありません
 - Markdown を開いただけでは何も実行されません。実行は必ずボタン操作かキー入力によります
 - 認証はありません (MVP)。信頼できるローカル環境でのみ使ってください
@@ -129,15 +152,17 @@ code-server のユーザーデータは `~/.local/share/kp2/code-server` (また
 
 ```
 docs/getting-started.md   手順書 (Markdown、デフォルトのディレクトリ)
-scripts/ttyd.sh           ttyd 起動スクリプト (localhost bind, shell 選択)
-scripts/code-server.sh    code-server 起動スクリプト (任意。未インストールなら何もしない)
-vite.config.ts            dev/preview server の localhost bind と ttyd へのプロキシ
-vite-docs-plugin.ts       任意ディレクトリの .md を配信し、変更を HMR で通知するミドルウェア
-vite-favorites-plugin.ts  favorites.json の読み書き API と変更通知
-vite-editor-plugin.ts     code-server の稼働確認 (/api/editor) とファイルを開く API (/api/open)
-src/ttyd.ts               ttyd WebSocket プロトコルの最小クライアント
+server/                   Rust backend (単一バイナリ kp2)
+  src/main.rs             CLI、ルーティング、同梱 UI の配信
+  src/pty.rs              PTY と WebSocket (ttyd 互換プロトコル、Origin 検証)
+  src/docs.rs             任意ディレクトリの .md 一覧と本文、フォルダ監視
+  src/favorites.rs        favorites.json の読み書き
+  src/editor.rs           code-server の起動、稼働確認、ファイルを開く API
+  src/events.rs           server-sent events (/api/events)
+vite.config.ts            dev server の localhost bind と kp2 へのプロキシ
+src/ttyd.ts               ttyd プロトコルの最小クライアント
 src/TerminalPane.tsx      xterm.js + fit addon + resize/copy/paste
-src/Guide.tsx             Markdown レンダリングと Run / Insert ボタン
+src/Guide.tsx             Markdown レンダリングと Copy / Insert / Run、リンク処理
 src/docs.ts               手順書ストア (サーバー経由 / File System Access API の 2 系統)、手順書の選択、お気に入り
 src/DocsPicker.tsx        ヘッダーのフォルダ / 手順書セレクタとフォルダ選択パネル
 src/editor.ts             エディタの稼働状態と vscode: リンクの解釈
@@ -145,8 +170,9 @@ src/SplitPane.tsx         エディタ / ターミナルの上下分割 (ドラ�
 src/App.tsx               2 ペインレイアウト
 ```
 
-## ttyd を選んだ理由
+## backend について
 
-ttyd の WebSocket プロトコルは非常に単純で (先頭 1 バイトがコマンド種別、`'0'`=入力、`'1'`=resize)、
-ttyd 同梱の Web UI を使わずとも xterm.js から直接話せます。
-そのため PTY 管理・resize・シグナル処理を自前で持つ必要がなく、backend は ttyd のプロセス 1 つだけです。
+最初の MVP では PTY 管理を [ttyd](https://github.com/tsl0922/ttyd) に任せていました。ttyd の WebSocket プロトコルは
+「先頭 1 バイトがコマンド種別、`'0'`=入力、`'1'`=resize」という単純なものなので、そのプロトコルを Rust で実装し直し、
+フロントエンドはそのままに backend を単一バイナリにしています。外部バイナリのインストールが不要になり、
+接続元の検証やセッション管理を自前で持てるようになりました。

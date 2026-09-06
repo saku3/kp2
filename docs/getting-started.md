@@ -55,6 +55,6 @@ uname -a
 
 code-server が入っていると右ペインの上にブラウザ版 VS Code が出ます。手順書からファイルを開くこともできます。
 
-[README.md を開く](vscode:README.md) / [scripts/ttyd.sh の 20 行目を開く](vscode:scripts/ttyd.sh#L20)
+[README.md を開く](vscode:README.md) / [src/App.tsx の 20 行目を開く](vscode:src/App.tsx#L20)
 
 リンクの書き方は `[表示名](vscode:ワークスペースからの相対パス#L行番号)` です。

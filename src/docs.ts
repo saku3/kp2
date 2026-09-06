@@ -1,8 +1,8 @@
 // Markdown documents, exposed as a tiny external store.
 //
 // Two kinds of source:
-//   - "server": a local directory path read by the Vite middleware (vite-docs-plugin.ts).
-//               Changes arrive over Vite's HMR channel as the "docs:changed" event.
+//   - "server": a local directory path read by the kp2 server (server/src/docs.rs).
+//               Changes arrive as server-sent events ("docs:changed").
 //   - "fs":     a directory picked with the File System Access API (Chrome / Edge). The browser
 //               reads the files itself; changes are detected by polling lastModified.
 //
@@ -294,8 +294,8 @@ async function refreshServerList(dir: string): Promise<void> {
   if (s.source?.kind === 'server' && s.source.dir === dir) setNames(body.names);
 }
 
-// Live updates from the Vite server (dev mode only).
-import.meta.hot?.on('docs:changed', (data: { dir: string; name: string; event: string }) => {
+// Live updates pushed by the server (server-sent events).
+function onDocsChanged(data: { dir: string; name: string; event: string }): void {
   const s = store.state;
   if (s.source?.kind !== 'server' || s.source.dir !== data.dir) return;
   void refreshServerList(data.dir);
@@ -308,7 +308,18 @@ import.meta.hot?.on('docs:changed', (data: { dir: string; name: string; event: s
       void loadDoc(data.name, true);
     }
   }
-});
+}
+
+function connectEvents(): void {
+  const es = new EventSource('/api/events');
+  es.addEventListener('docs:changed', (e) => onDocsChanged(JSON.parse((e as MessageEvent).data)));
+  es.addEventListener('favorites:changed', () => void loadFavorites());
+  // EventSource reconnects by itself; after a reconnect the list may be stale, so refresh it.
+  es.onopen = () => {
+    const s = store.state;
+    if (s.source?.kind === 'server') void refreshServerList(s.source.dir);
+  };
+}
 
 // ---------------------------------------------------------------------------------------
 // Favorites (server-side favorites.json)
@@ -375,7 +386,6 @@ export function openFavorite(fav: Favorite): Promise<void> {
   return openServerDir(fav.dir, fav.doc);
 }
 
-import.meta.hot?.on('favorites:changed', () => void loadFavorites());
 
 // ---------------------------------------------------------------------------------------
 // Startup: restore the last source (URL ?dir= wins, then localStorage, then the server default)
@@ -416,6 +426,7 @@ async function initDocs(): Promise<void> {
 
 if (!store.initialized) {
   store.initialized = true;
+  connectEvents();
   void initDocs();
 }
 

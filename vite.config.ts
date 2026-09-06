@@ -1,26 +1,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { docsPlugin } from './vite-docs-plugin';
-import { favoritesPlugin } from './vite-favorites-plugin';
-import { editorDefaults, editorPlugin } from './vite-editor-plugin';
 
-// ttyd listens on 127.0.0.1:7681 (see scripts/ttyd.sh) and code-server on 127.0.0.1:7682
-// (scripts/code-server.sh). The browser talks only to this dev server, which proxies both.
-const TTYD = process.env.TTYD_URL ?? 'http://127.0.0.1:7681';
-const editor = editorDefaults();
+// In development the UI is served by Vite and everything else (terminal WebSocket, APIs,
+// server-sent events) is proxied to the kp2 server (server/), which `npm run dev` starts on
+// 127.0.0.1:7681. In production the kp2 binary serves the built UI itself.
+const SERVER = process.env.KP2_SERVER_URL ?? 'http://127.0.0.1:7681';
 const proxy = {
-  '/ws': { target: TTYD, ws: true },
-  '/token': { target: TTYD },
-  // code-server under /code/. Do not set changeOrigin: code-server checks Origin against Host.
-  '/code': { target: editor.codeServerUrl, ws: true, rewrite: (p: string) => p.replace(/^\/code/, '') || '/' },
+  '/ws': { target: SERVER, ws: true },
+  '/token': { target: SERVER },
+  '/api': { target: SERVER },
 };
 
-// Markdown directory served to the browser by default. Any other local directory can be
-// opened from the UI at runtime.
-const DOCS_DIR = process.env.DOCS_DIR ?? 'docs';
-
 export default defineConfig({
-  plugins: [react(), docsPlugin(DOCS_DIR), favoritesPlugin(), editorPlugin(editor)],
+  plugins: [react()],
   server: { host: '127.0.0.1', port: 5173, strictPort: true, proxy },
   preview: { host: '127.0.0.1', port: 5173, strictPort: true, proxy },
 });
