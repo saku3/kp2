@@ -35,23 +35,31 @@ export function SplitPane({ top, bottom, horizontal = false, topHidden = false, 
     }
   }, [ratio, storageKey]);
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
+  // Pointer capture keeps move/up events coming to the divider even when the pointer is
+  // released over an iframe, the terminal canvas, or outside the window.
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setDragging(true);
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    const divider = e.currentTarget;
+    divider.setPointerCapture(e.pointerId);
+    setDragging(true);
     const move = (ev: PointerEvent) => {
       const r = horizontal ? (ev.clientX - rect.left) / rect.width : (ev.clientY - rect.top) / rect.height;
       setRatio(Math.min(0.9, Math.max(0.1, r)));
     };
     const up = () => {
       setDragging(false);
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
+      divider.removeEventListener('pointermove', move);
+      divider.removeEventListener('pointerup', up);
+      divider.removeEventListener('pointercancel', up);
+      divider.removeEventListener('lostpointercapture', up);
     };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    divider.addEventListener('pointermove', move);
+    divider.addEventListener('pointerup', up);
+    divider.addEventListener('pointercancel', up);
+    divider.addEventListener('lostpointercapture', up);
   }, [horizontal]);
 
   return (
