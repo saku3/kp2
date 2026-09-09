@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { getDocsState, selectDoc, subscribeDocs } from './docs';
 import { DocsPicker } from './DocsPicker';
-import { useEditor } from './editor';
+import { useEditor, useEditorShown } from './editor';
+import { EditorToggle } from './EditorToggle';
 import { SplitPane } from './SplitPane';
 import { Guide } from './Guide';
 import { TerminalPane, type TerminalHandle } from './TerminalPane';
@@ -10,6 +11,12 @@ export function App() {
   const docs = useSyncExternalStore(subscribeDocs, getDocsState);
   const docName = docs.docName;
   const editor = useEditor();
+  const editorShown = useEditorShown();
+  // Load VS Code only once the user first shows it; afterwards hiding just hides (no reload).
+  const [editorLoaded, setEditorLoaded] = useState(editorShown);
+  useEffect(() => {
+    if (editorShown) setEditorLoaded(true);
+  }, [editorShown]);
 
   // Start each document at the top (switching via a link or the dropdown).
   const guideRef = useRef<HTMLElement>(null);
@@ -48,21 +55,20 @@ export function App() {
       <header className="app-header">
         <span className="app-title">Guide</span>
         <DocsPicker docs={docs} />
+        <EditorToggle editor={editor} />
       </header>
       <main className="panes">
         <section className="pane pane-guide" ref={guideRef}>
           <Guide markdown={markdown} docName={docName} names={docs.names} onNavigate={selectDoc} onInsert={insert} onRun={run} />
         </section>
         <section className="pane pane-right">
-          {editor?.available ? (
-            <SplitPane
-              storageKey="kp2.editorSplit"
-              top={<iframe className="editor-frame" src={editor.url} title="Editor" allow="clipboard-read; clipboard-write" />}
-              bottom={<TerminalPane onReady={onReady} />}
-            />
-          ) : (
-            <TerminalPane onReady={onReady} />
-          )}
+          {/* The terminal is always the bottom pane so showing/hiding the editor never re-mounts it. */}
+          <SplitPane
+            storageKey="kp2.editorSplit"
+            topHidden={!(editor?.available && editorShown)}
+            top={editor?.available && editorLoaded ? <iframe className="editor-frame" src={editor.url} title="Editor" allow="clipboard-read; clipboard-write" /> : null}
+            bottom={<TerminalPane onReady={onReady} />}
+          />
         </section>
       </main>
     </div>
