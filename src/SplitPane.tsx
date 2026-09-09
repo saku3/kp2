@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
 interface Props {
+  /** First pane: top (vertical) or left (horizontal). */
   top: ReactNode;
+  /** Second pane: bottom (vertical) or right (horizontal). */
   bottom: ReactNode;
+  /** Side by side instead of stacked. */
+  horizontal?: boolean;
   /** Hide the top pane (and divider) with CSS; nothing is unmounted, so an iframe keeps its state. */
   topHidden?: boolean;
   storageKey: string;
@@ -10,8 +14,8 @@ interface Props {
   initial?: number;
 }
 
-/** Vertical split with a draggable divider; the ratio is remembered per storageKey. */
-export function SplitPane({ top, bottom, topHidden = false, storageKey, initial = 0.6 }: Props) {
+/** Two panes with a draggable divider; the ratio is remembered per storageKey. */
+export function SplitPane({ top, bottom, horizontal = false, topHidden = false, storageKey, initial = 0.6 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [ratio, setRatio] = useState(() => {
     try {
@@ -31,29 +35,37 @@ export function SplitPane({ top, bottom, topHidden = false, storageKey, initial 
     }
   }, [ratio, storageKey]);
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
+  // Pointer capture keeps move/up events coming to the divider even when the pointer is
+  // released over an iframe, the terminal canvas, or outside the window.
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setDragging(true);
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    const divider = e.currentTarget;
+    divider.setPointerCapture(e.pointerId);
+    setDragging(true);
     const move = (ev: PointerEvent) => {
-      const r = (ev.clientY - rect.top) / rect.height;
+      const r = horizontal ? (ev.clientX - rect.left) / rect.width : (ev.clientY - rect.top) / rect.height;
       setRatio(Math.min(0.9, Math.max(0.1, r)));
     };
     const up = () => {
       setDragging(false);
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
+      divider.removeEventListener('pointermove', move);
+      divider.removeEventListener('pointerup', up);
+      divider.removeEventListener('pointercancel', up);
+      divider.removeEventListener('lostpointercapture', up);
     };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  }, []);
+    divider.addEventListener('pointermove', move);
+    divider.addEventListener('pointerup', up);
+    divider.addEventListener('pointercancel', up);
+    divider.addEventListener('lostpointercapture', up);
+  }, [horizontal]);
 
   return (
-    <div className={`split${dragging ? ' is-dragging' : ''}`} ref={ref}>
+    <div className={`split${horizontal ? ' split-h' : ''}${dragging ? ' is-dragging' : ''}`} ref={ref}>
       <div className="split-top" style={{ flexBasis: `${ratio * 100}%` }} hidden={topHidden}>{top}</div>
-      <div className="split-divider" role="separator" aria-orientation="horizontal" onPointerDown={onPointerDown} hidden={topHidden} />
+      <div className="split-divider" role="separator" aria-orientation={horizontal ? 'vertical' : 'horizontal'} onPointerDown={onPointerDown} hidden={topHidden} />
       <div className="split-bottom">{bottom}</div>
     </div>
   );
