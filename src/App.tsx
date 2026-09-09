@@ -54,7 +54,7 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <span className="app-title">Guide</span>
-        <DocsPicker docs={docs} />
+        <DocsPicker docs={docs} canEdit={!!editor?.available} />
         <EditorToggle editor={editor} />
       </header>
       <main className="panes">

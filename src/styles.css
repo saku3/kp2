@@ -140,6 +140,15 @@ html, body, #root { height: 100%; margin: 0; }
 }
 .popover-action:hover { background: var(--hover); }
 
+/* Small icon buttons in the header (edit) */
+.icon-button {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--muted); cursor: pointer;
+}
+.icon-button:hover { background: var(--hover); color: var(--fg); }
+.icon-button:focus-visible { outline: 2px solid #0969da; outline-offset: 1px; }
+
 /* Pin (star) buttons */
 .star {
   display: inline-flex; align-items: center; justify-content: center; flex: none;

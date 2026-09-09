@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { openInEditor } from './editor';
 import {
   canPickDirectory,
   currentFavorite,
@@ -18,6 +19,8 @@ import {
 
 interface Props {
   docs: DocsState;
+  /** True when the current document can be opened in the VS Code pane. */
+  canEdit: boolean;
 }
 
 const FolderIcon = () => (
@@ -28,6 +31,11 @@ const FolderIcon = () => (
 const DocIcon = () => (
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
     <path d="M4 1.5h5l3.5 3.5v9.5h-8.5z M9 1.5v3.5h3.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+  </svg>
+);
+const PencilIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M11.3 2.2 13.8 4.7 5.5 13H3v-2.5z M9.8 3.7l2.5 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
   </svg>
 );
 const Chevron = () => (
@@ -85,7 +93,7 @@ function groupByFolder(names: string[]): { folder: string; items: { name: string
   return [...groups].sort(([a], [b]) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))).map(([folder, items]) => ({ folder, items }));
 }
 
-export function DocsPicker({ docs }: Props) {
+export function DocsPicker({ docs, canEdit }: Props) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const popRef = useRef<HTMLDivElement>(null);
@@ -229,6 +237,16 @@ export function DocsPicker({ docs }: Props) {
             </select>
           </label>
           <StarButton fav={docFav} what="this document" />
+          {canEdit && docs.source?.kind === 'server' && (
+            <button
+              type="button"
+              className="icon-button"
+              title="Edit this document in VS Code"
+              onClick={() => void openInEditor(`${docs.label}/${docs.docName}`)}
+            >
+              <PencilIcon />
+            </button>
+          )}
           {docs.notice && !open && <span className="crumb-notice">{docs.notice}</span>}
         </>
       )}
