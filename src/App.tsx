@@ -58,18 +58,28 @@ export function App() {
         <EditorToggle editor={editor} />
       </header>
       <main className="panes">
-        <section className="pane pane-guide" ref={guideRef}>
-          <Guide markdown={markdown} docName={docName} names={docs.names} onNavigate={selectDoc} onInsert={insert} onRun={run} />
-        </section>
-        <section className="pane pane-right">
-          {/* The terminal is always the bottom pane so showing/hiding the editor never re-mounts it. */}
-          <SplitPane
-            storageKey="kp2.editorSplit"
-            topHidden={!(editor?.available && editorShown)}
-            top={editor?.available && editorLoaded ? <iframe className="editor-frame" src={editor.url} title="Editor" allow="clipboard-read; clipboard-write" /> : null}
-            bottom={<TerminalPane onReady={onReady} />}
-          />
-        </section>
+        {/* Guide | terminal (+ editor): drag the divider to change the guide width. */}
+        <SplitPane
+          horizontal
+          storageKey="kp2.guideSplit"
+          initial={0.45}
+          top={
+            <section className="pane pane-guide" ref={guideRef}>
+              <Guide markdown={markdown} docName={docName} names={docs.names} onNavigate={selectDoc} onInsert={insert} onRun={run} />
+            </section>
+          }
+          bottom={
+            <section className="pane pane-right">
+              {/* The terminal is always the bottom pane so showing/hiding the editor never re-mounts it. */}
+              <SplitPane
+                storageKey="kp2.editorSplit"
+                topHidden={!(editor?.available && editorShown)}
+                top={editor?.available && editorLoaded ? <iframe className="editor-frame" src={editor.url} title="Editor" allow="clipboard-read; clipboard-write" /> : null}
+                bottom={<TerminalPane onReady={onReady} />}
+              />
+            </section>
+          }
+        />
       </main>
     </div>
   );
