@@ -3,13 +3,15 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 interface Props {
   top: ReactNode;
   bottom: ReactNode;
+  /** Hide the top pane (and divider) with CSS; nothing is unmounted, so an iframe keeps its state. */
+  topHidden?: boolean;
   storageKey: string;
   /** Initial share of the height given to the top pane, 0..1. */
   initial?: number;
 }
 
 /** Vertical split with a draggable divider; the ratio is remembered per storageKey. */
-export function SplitPane({ top, bottom, storageKey, initial = 0.6 }: Props) {
+export function SplitPane({ top, bottom, topHidden = false, storageKey, initial = 0.6 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [ratio, setRatio] = useState(() => {
     try {
@@ -50,8 +52,8 @@ export function SplitPane({ top, bottom, storageKey, initial = 0.6 }: Props) {
 
   return (
     <div className={`split${dragging ? ' is-dragging' : ''}`} ref={ref}>
-      <div className="split-top" style={{ flexBasis: `${ratio * 100}%` }}>{top}</div>
-      <div className="split-divider" role="separator" aria-orientation="horizontal" onPointerDown={onPointerDown} />
+      <div className="split-top" style={{ flexBasis: `${ratio * 100}%` }} hidden={topHidden}>{top}</div>
+      <div className="split-divider" role="separator" aria-orientation="horizontal" onPointerDown={onPointerDown} hidden={topHidden} />
       <div className="split-bottom">{bottom}</div>
     </div>
   );

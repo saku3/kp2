@@ -93,7 +93,7 @@ Markdown 内の相対リンク (`[次へ](./ops/backup.md)` や `[戻る](../int
 
 ## エディタ (code-server)
 
-code-server が動いていると、右ペインが上下に分かれて上にブラウザ版 VS Code、下にターミナルが出ます。境界はドラッグで動かせます。
+code-server が動いていると、ヘッダー右端に **Editor** ボタンが出ます。押すと右ペインが上下に分かれて上にブラウザ版 VS Code、下にターミナルが出ます (境界はドラッグで動かせます)。もう一度押すと隠れます。既定は隠れた状態で、選択はブラウザに記憶されます。手順書の `vscode:` リンクを押すと自動で表示されます。
 VS Code が開くフォルダ (ワークスペース) は既定でリポジトリのルートで、`KP2_WORKSPACE=~/src/myproject npm run dev` で変えられます。
 ターミナルとエディタは同じローカルファイルシステムを見ているので、「手順書を読む → エディタで編集 → Run で実行 → ターミナルで結果を見る」がブラウザの中で完結します。
 
@@ -140,7 +140,8 @@ src/TerminalPane.tsx      xterm.js + fit addon + resize/copy/paste
 src/Guide.tsx             Markdown レンダリングと Run / Insert ボタン
 src/docs.ts               手順書ストア (サーバー経由 / File System Access API の 2 系統)、手順書の選択、お気に入り
 src/DocsPicker.tsx        ヘッダーのフォルダ / 手順書セレクタとフォルダ選択パネル
-src/editor.ts             エディタの稼働状態と vscode: リンクの解釈
+src/editor.ts             エディタの稼働状態、表示のオン / オフ、vscode: リンクの解釈
+src/EditorToggle.tsx      ヘッダーの Editor ボタン
 src/SplitPane.tsx         エディタ / ターミナルの上下分割 (ドラッグで比率変更)
 src/App.tsx               2 ペインレイアウト
 ```
