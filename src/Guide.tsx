@@ -71,7 +71,17 @@ function CodeBlock({
           )}
         </span>
       </div>
-      <pre>
+      <pre
+        title={runnable ? 'Double-click to run' : undefined}
+        onDoubleClick={
+          runnable
+            ? () => {
+                window.getSelection()?.removeAllRanges(); // a double-click also selects a word; drop that
+                onRun(command);
+              }
+            : undefined
+        }
+      >
         <code>{command}</code>
       </pre>
     </div>
