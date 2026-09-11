@@ -20,7 +20,8 @@ export function SplitPane({ top, bottom, horizontal = false, topHidden = false, 
   const [ratio, setRatio] = useState(() => {
     try {
       const v = Number(localStorage.getItem(storageKey));
-      return v > 0.1 && v < 0.9 ? v : initial;
+      // Inclusive: a divider dragged to the clamp (exactly 0.1 or 0.9) must survive a reload.
+      return v >= 0.1 && v <= 0.9 ? v : initial;
     } catch {
       return initial;
     }
