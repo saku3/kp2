@@ -1,5 +1,5 @@
-import { isValidElement, useEffect, useState, type ReactNode } from 'react';
-import Markdown, { defaultUrlTransform } from 'react-markdown';
+import { createContext, isValidElement, useContext, useEffect, useState, type ComponentProps, type ReactNode } from 'react';
+import Markdown, { defaultUrlTransform, type Components, type ExtraProps } from 'react-markdown';
 import { openInEditor, parseEditorLink } from './editor';
 import remarkGfm from 'remark-gfm';
 
@@ -33,12 +33,22 @@ export function resolveDocLink(docName: string | null, href: string): string | n
   return decodeURIComponent(out.join('/'));
 }
 
-function CodeBlock({
-  lang,
-  code,
-  onInsert,
-  onRun,
-}: { lang: string; code: string; onInsert: Props['onInsert']; onRun: Props['onRun'] }) {
+// The custom renderers reach the current document and callbacks through context rather than
+// closures, so the `components` object below is created once. react-markdown identifies a
+// component by function identity; a renderer created per render would make React unmount and
+// recreate every code block on each Guide render, resetting its horizontal scroll, the
+// "Copied" label and any text selection.
+type GuideContextValue = Omit<Props, 'markdown'>;
+const GuideContext = createContext<GuideContextValue>({
+  docName: null,
+  names: [],
+  onNavigate: () => {},
+  onInsert: () => {},
+  onRun: () => {},
+});
+
+function CodeBlock({ lang, code }: { lang: string; code: string }) {
+  const { onInsert, onRun } = useContext(GuideContext);
   const runnable = RUNNABLE.has(lang);
   // The command shown is exactly the command sent: no hidden text, no transformation.
   const command = code.replace(/\n$/, '');
@@ -98,72 +108,78 @@ function parsePreChild(children: ReactNode): { lang: string; code: string } | nu
   return { lang, code };
 }
 
-export function Guide({ markdown, docName, names, onNavigate, onInsert, onRun }: Props) {
-  return (
-    <article className="guide">
-      <Markdown
-        remarkPlugins={[remarkGfm]}
-        // Keep our own "vscode:" links; everything else gets react-markdown's default sanitizing.
-        urlTransform={(url) => (url.startsWith('vscode:') ? url : defaultUrlTransform(url))}
-        components={{
-          a: ({ href = '', children, node: _node, ...rest }) => {
-            const editorLink = parseEditorLink(href);
-            if (editorLink) {
-              // "vscode:path#L12": opens the file in the editor pane (path relative to the workspace).
-              return (
-                <a
-                  {...rest}
-                  href={href}
-                  className="link-editor"
-                  title={`Open in editor: ${editorLink.file}${editorLink.line ? `:${editorLink.line}` : ''}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    void openInEditor(editorLink.file, editorLink.line);
-                  }}
-                >
-                  {children}
-                </a>
-              );
-            }
-            const target = resolveDocLink(docName, href);
-            if (target !== null && !names.includes(target)) {
-              // A .md link inside the folder that does not exist: do not leave the app.
-              return (
-                <a {...rest} href={href} className="link-missing" title={`Not found in this folder: ${target}`} onClick={(e) => e.preventDefault()}>
-                  {children}
-                </a>
-              );
-            }
-            if (target !== null) {
-              return (
-                <a
-                  {...rest}
-                  href={`?doc=${encodeURIComponent(target)}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onNavigate(target);
-                  }}
-                >
-                  {children}
-                </a>
-              );
-            }
-            const external = /^https?:/i.test(href);
-            return (
-              <a {...rest} href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
-                {children}
-              </a>
-            );
-          },
-          pre: ({ children }) => {
-            const parsed = parsePreChild(children);
-            if (!parsed) return <pre>{children}</pre>;
-            return <CodeBlock {...parsed} onInsert={onInsert} onRun={onRun} />;
-          },
+function GuidePre({ children }: ComponentProps<'pre'> & ExtraProps) {
+  const parsed = parsePreChild(children);
+  if (!parsed) return <pre>{children}</pre>;
+  return <CodeBlock {...parsed} />;
+}
+
+function GuideLink({ href = '', children, node: _node, ...rest }: ComponentProps<'a'> & ExtraProps) {
+  const { docName, names, onNavigate } = useContext(GuideContext);
+  const editorLink = parseEditorLink(href);
+  if (editorLink) {
+    // "vscode:path#L12": opens the file in the editor pane (path relative to the workspace).
+    return (
+      <a
+        {...rest}
+        href={href}
+        className="link-editor"
+        title={`Open in editor: ${editorLink.file}${editorLink.line ? `:${editorLink.line}` : ''}`}
+        onClick={(e) => {
+          e.preventDefault();
+          void openInEditor(editorLink.file, editorLink.line);
         }}
       >
-        {markdown}
-      </Markdown>
-    </article>
+        {children}
+      </a>
+    );
+  }
+  const target = resolveDocLink(docName, href);
+  if (target !== null && !names.includes(target)) {
+    // A .md link inside the folder that does not exist: do not leave the app.
+    return (
+      <a {...rest} href={href} className="link-missing" title={`Not found in this folder: ${target}`} onClick={(e) => e.preventDefault()}>
+        {children}
+      </a>
+    );
+  }
+  if (target !== null) {
+    return (
+      <a
+        {...rest}
+        href={`?doc=${encodeURIComponent(target)}`}
+        onClick={(e) => {
+          e.preventDefault();
+          onNavigate(target);
+        }}
+      >
+        {children}
+      </a>
+    );
+  }
+  const external = /^https?:/i.test(href);
+  return (
+    <a {...rest} href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}>
+      {children}
+    </a>
+  );
+}
+
+const components: Components = { a: GuideLink, pre: GuidePre };
+
+// Keep our own "vscode:" links; everything else gets react-markdown's default sanitizing.
+const urlTransform = (url: string) => (url.startsWith('vscode:') ? url : defaultUrlTransform(url));
+
+const remarkPlugins = [remarkGfm];
+
+export function Guide({ markdown, docName, names, onNavigate, onInsert, onRun }: Props) {
+  return (
+    <GuideContext.Provider value={{ docName, names, onNavigate, onInsert, onRun }}>
+      <article className="guide">
+        <Markdown remarkPlugins={remarkPlugins} urlTransform={urlTransform} components={components}>
+          {markdown}
+        </Markdown>
+      </article>
+    </GuideContext.Provider>
   );
 }
