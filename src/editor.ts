@@ -12,13 +12,19 @@ export function useEditor(): EditorInfo | null {
   const [info, setInfo] = useState<EditorInfo | null>(null);
   useEffect(() => {
     let cancelled = false;
+    // Keep the previous object when nothing changed, so the periodic probe does not re-render
+    // the whole app every 3 seconds.
+    const update = (next: EditorInfo) =>
+      setInfo((prev) =>
+        prev && prev.available === next.available && prev.url === next.url && prev.workspace === next.workspace ? prev : next,
+      );
     const probe = async () => {
       try {
         const res = await fetch('/api/editor');
         const body = (await res.json()) as EditorInfo;
-        if (!cancelled) setInfo(body);
+        if (!cancelled) update(body);
       } catch {
-        if (!cancelled) setInfo({ available: false, url: '', workspace: '' });
+        if (!cancelled) update({ available: false, url: '', workspace: '' });
       }
     };
     void probe();
