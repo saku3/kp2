@@ -15,9 +15,10 @@ const proxy = {
   '/code': { target: editor.codeServerUrl, ws: true, rewrite: (p: string) => p.replace(/^\/code/, '') || '/' },
 };
 
-// Hostnames the dev server answers to besides localhost / 127.0.0.1. `kp2.test` is meant to be
-// pointed at 127.0.0.1 in /etc/hosts.
-const ALLOWED_HOSTS = ['kp2.test'];
+// Extra hostnames the dev/preview server answers to besides localhost / 127.0.0.1, as a
+// comma-separated list (e.g. ALLOWED_HOSTS=kp2.test with `127.0.0.1 kp2.test` in /etc/hosts).
+// Unset means Vite's default: localhost only.
+const ALLOWED_HOSTS = (process.env.ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean);
 
 // Markdown directory served to the browser by default. Any other local directory can be
 // opened from the UI at runtime.
