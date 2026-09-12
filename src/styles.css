@@ -36,7 +36,8 @@ html, body, #root { height: 100%; margin: 0; }
 .guide h2 { font-size: 1.35em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
 .guide code { font-family: Menlo, "SF Mono", Monaco, monospace; font-size: 85%; }
 .guide :not(pre) > code { background: var(--code-bg); padding: .15em .35em; border-radius: 4px; }
-.guide table { border-collapse: collapse; }
+/* A wide table scrolls by itself instead of forcing the whole pane to scroll sideways. */
+.guide table { border-collapse: collapse; display: block; width: max-content; max-width: 100%; overflow-x: auto; }
 .guide th, .guide td { border: 1px solid var(--border); padding: 4px 10px; }
 .guide a { color: #0969da; }
 .guide a.link-missing { color: var(--muted); text-decoration: line-through; cursor: not-allowed; }
@@ -162,7 +163,10 @@ html, body, #root { height: 100%; margin: 0; }
 .split.is-dragging .xterm, .split.is-dragging .guide { user-select: none; }
 
 /* Editor / terminal vertical split */
-.split { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+/* min-width: 0 lets the split shrink to the viewport even when the guide holds a wide table;
+   otherwise the flex item's automatic minimum (its min-content width) overflows the page and
+   the divider cannot be dragged past the table. */
+.split { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
 .split-top { flex: 0 0 60%; min-height: 0; display: flex; }
 .split-top[hidden], .split-divider[hidden] { display: none; }
 .split-bottom { flex: 1; min-height: 0; display: flex; flex-direction: column; }
