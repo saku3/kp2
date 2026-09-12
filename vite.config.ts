@@ -15,12 +15,16 @@ const proxy = {
   '/code': { target: editor.codeServerUrl, ws: true, rewrite: (p: string) => p.replace(/^\/code/, '') || '/' },
 };
 
+// Hostnames the dev server answers to besides localhost / 127.0.0.1. `kp2.test` is meant to be
+// pointed at 127.0.0.1 in /etc/hosts.
+const ALLOWED_HOSTS = ['kp2.test'];
+
 // Markdown directory served to the browser by default. Any other local directory can be
 // opened from the UI at runtime.
 const DOCS_DIR = process.env.DOCS_DIR ?? 'docs';
 
 export default defineConfig({
   plugins: [react(), docsPlugin(DOCS_DIR), favoritesPlugin(), editorPlugin(editor)],
-  server: { host: '127.0.0.1', port: 5173, strictPort: true, proxy },
-  preview: { host: '127.0.0.1', port: 5173, strictPort: true, proxy },
+  server: { host: '127.0.0.1', port: 5173, strictPort: true, allowedHosts: ALLOWED_HOSTS, proxy },
+  preview: { host: '127.0.0.1', port: 5173, strictPort: true, allowedHosts: ALLOWED_HOSTS, proxy },
 });
