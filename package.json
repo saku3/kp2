@@ -2,6 +2,7 @@
   "name": "kp2",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "concurrently --kill-others-on-fail -n ttyd,code,vite -c yellow,magenta,cyan \"npm:ttyd\" \"npm:code-server\" \"npm:vite\"",
