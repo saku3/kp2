@@ -1,61 +1,63 @@
-# kp2 — Markdown 手順書 + ブラウザターミナル
+# kp2 — Markdown runbooks + a browser terminal
 
-ブラウザの左ペインに Markdown 手順書、右ペインに xterm.js のターミナルを表示し、
-手順書の `bash` / `sh` / `shell` コードブロックの **Run** ボタンでコマンドをローカル shell に流し込むツールです。
-「ローカルで動く Instruqt / Killercoda」の最小構成 (MVP) です。
+English | [日本語](README.ja.md)
+
+kp2 shows a Markdown runbook in the left pane and an xterm.js terminal in the right pane of your browser.
+Every `bash` / `sh` / `shell` code block in the runbook gets a **Run** button that sends the command to your local shell.
+Think of it as a minimal, local-only Instruqt / Killercoda (MVP).
 
 ```
 Browser
   Markdown ──Run──▶ xterm.js ──WebSocket (/ws, proxied by Vite)──▶ ttyd ──▶ PTY ──▶ $SHELL
 ```
 
-## 必要なもの
+## Requirements
 
-- Node.js 20 以上
-- [ttyd](https://github.com/tsl0922/ttyd) 1.7 以上 (macOS: `brew install ttyd`)
-- 任意: [code-server](https://github.com/coder/code-server) (macOS: `brew install code-server`)。入っているとブラウザ版 VS Code のペインが出ます
+- Node.js 20 or later
+- [ttyd](https://github.com/tsl0922/ttyd) 1.7 or later (macOS: `brew install ttyd`)
+- Optional: [code-server](https://github.com/coder/code-server) (macOS: `brew install code-server`). When installed, a browser-based VS Code pane becomes available
 
-## 起動
+## Getting started
 
 ```bash
 npm install
 npm run dev
 ```
 
-`npm run dev` は次の 3 つを同時に起動します。
+`npm run dev` starts the following three processes together.
 
-| プロセス | バインド先 | 役割 |
+| Process | Bind address | Role |
 | --- | --- | --- |
-| ttyd (`scripts/ttyd.sh`) | `127.0.0.1:7681` | PTY と shell (`$SHELL` → `/bin/zsh` → `/bin/bash` の順で選択) |
-| code-server (`scripts/code-server.sh`) | `127.0.0.1:7682` | ブラウザ版 VS Code。未インストールなら起動せず、エディタペインも出ません |
-| Vite dev server | `127.0.0.1:5173` | React UI の配信。`/ws` と `/token` を ttyd へ、`/code` を code-server へプロキシ |
+| ttyd (`scripts/ttyd.sh`) | `127.0.0.1:7681` | PTY and shell (picks `$SHELL`, then `/bin/zsh`, then `/bin/bash`) |
+| code-server (`scripts/code-server.sh`) | `127.0.0.1:7682` | Browser-based VS Code. Skipped when not installed, in which case the editor pane is not shown |
+| Vite dev server | `127.0.0.1:5173` | Serves the React UI. Proxies `/ws` and `/token` to ttyd and `/code` to code-server |
 
-ブラウザで <http://127.0.0.1:5173/> を開いてください。
+Open <http://127.0.0.1:5173/> in your browser.
 
-本番ビルドを試す場合は `npm run build && npm start` です (Vite preview + ttyd、同じポート構成)。preview では手順書のライブ更新は効きません。
+To try a production build, run `npm run build && npm start` (Vite preview + ttyd, same port layout). Live reload of runbooks does not work in preview mode.
 
-## 手順書
+## Runbooks
 
-デフォルトではリポジトリ内の `docs/*.md` を読み込みます。デフォルトは `docs/getting-started.md` です。
-Markdown は実行時にサーバーが読むので、編集すると即座に左ペインだけが更新され、ターミナルはそのまま維持されます。
+By default, kp2 loads `docs/*.md` from the repository, starting with `docs/getting-started.md`.
+The server reads the Markdown at request time, so editing a file updates only the left pane immediately while the terminal keeps running.
 
-### 別のディレクトリの手順書を開く
+### Opening runbooks from another directory
 
-リポジトリ外の任意のディレクトリを 3 通りの方法で指定できます。
+You can point kp2 at any directory outside the repository in three ways.
 
-1. **パスを入力**: ヘッダーのフォルダ名をクリックすると開くパネルに `~/notes/k8s` のようなパスを入れて **Open**。
-   サブディレクトリの `.md` も再帰的に一覧に出ます。最近開いたフォルダは同じパネルに並び、次回起動時も最後に開いた場所を復元します。
-2. **Choose folder…** (Chrome / Edge のみ): 同じパネルから OS のフォルダ選択ダイアログで選びます。この場合はブラウザが直接ファイルを読み、
-   サーバーは関与しません。変更は 2 秒ごとのポーリングで検知します。リロード後は「Re-open」を押すと再度読めるようになります (ブラウザの権限仕様)。
-3. **起動時の指定**: `DOCS_DIR=~/notes npm run dev` でデフォルトのディレクトリを変えられます。`?dir=<path>` を URL に付けても同じです。
+1. **Type a path**: click the folder name in the header, enter a path such as `~/notes/k8s` in the panel, and press **Open**.
+   `.md` files in subdirectories are listed recursively. Recently opened folders appear in the same panel, and the last location is restored on the next start.
+2. **Choose folder…** (Chrome / Edge only): pick a folder with the OS folder dialog from the same panel. In this mode the browser reads the files directly and
+   the server is not involved. Changes are detected by polling every 2 seconds. After a reload, press **Re-open** to regain access (a browser permission rule).
+3. **At startup**: `DOCS_DIR=~/notes npm run dev` changes the default directory. Appending `?dir=<path>` to the URL does the same.
 
-### お気に入り (Pinned)
+### Favorites (Pinned)
 
-よく使うフォルダや手順書はピン留めできます。ヘッダーの手順書名の横にある ☆ で今の手順書を、フォルダパネル内の ☆ でフォルダや最近の項目をピン留めし、パネルの **Pinned** から 1 クリックで開けます。
+Frequently used folders and runbooks can be pinned. The ☆ next to the runbook name in the header pins the current runbook, and the ☆ inside the folder panel pins a folder or a recent entry. Pinned items open with one click from the **Pinned** section of the panel.
 
-保存先はブラウザではなくファイルです (ブラウザを変えても残り、手で編集したり dotfiles に入れたりできます)。
+Favorites are stored in a file rather than in the browser, so they survive browser changes and can be edited by hand or kept in your dotfiles.
 
-| 優先順 | 場所 |
+| Priority | Location |
 | --- | --- |
 | 1 | `$KP2_CONFIG_DIR/favorites.json` |
 | 2 | `$XDG_CONFIG_HOME/kp2/favorites.json` |
@@ -70,88 +72,88 @@ Markdown は実行時にサーバーが読むので、編集すると即座に�
 }
 ```
 
-`dir` は `~` 始まりでも構いません。`label` は省略可能で、表示名になります。ファイルを手で編集すると開いているブラウザにも即時反映されます。
-Choose folder… で選んだフォルダはパスをブラウザから取得できないためピン留めできません。パス入力で開き直してください。
+`dir` may start with `~`. `label` is optional and used as the display name. Editing the file by hand is reflected immediately in open browsers.
+Folders picked with **Choose folder…** cannot be pinned because the browser does not expose their path. Open them by typing the path instead.
 
-`?doc=<ファイル名>` で表示する手順書を選べます (ヘッダーのファイル名をクリックしても切り替えられます)。
+`?doc=<file name>` selects the runbook to show (clicking the file name in the header does the same).
 
-### 階層のあるフォルダ
+### Nested folders
 
-サブディレクトリの `.md` も再帰的に読み込み、`k8s/setup.md` のような相対パスが手順書名になります。
-ヘッダーのドロップダウンではサブディレクトリごとにまとめて表示されます。
+`.md` files in subdirectories are loaded recursively, and a relative path such as `k8s/setup.md` becomes the runbook name.
+The header dropdown groups them by subdirectory.
 
-Markdown 内の相対リンク (`[次へ](./ops/backup.md)` や `[戻る](../intro.md)`) は、同じフォルダ内の手順書を指していればクリックでその手順書に切り替わります。
-フォルダの外に出るリンクや存在しないファイルへのリンクは取り消し線付きになり、クリックしても何も起きません。`http(s)://` のリンクは新しいタブで開きます。
+Relative links inside Markdown (`[Next](./ops/backup.md)`, `[Back](../intro.md)`) switch to that runbook when the target is inside the same folder.
+Links that leave the folder or point to a missing file are shown with a strikethrough and do nothing when clicked. `http(s)://` links open in a new tab.
 
-サーバーが返すのは指定ディレクトリ配下の `.md` ファイルだけで、`..` などで外に出ることはできません。
+The server only serves `.md` files under the chosen directory; `..` and similar tricks cannot escape it.
 
-すべてのコードブロックに **Copy** があり、内容をクリップボードにコピーします。
-言語が `bash` / `sh` / `shell` のときはさらに次の 2 つが表示されます。
+Every code block has a **Copy** button that copies its content to the clipboard.
+Blocks whose language is `bash` / `sh` / `shell` additionally get these two buttons.
 
-- **Run**: 表示されている内容をそのままターミナルへ送り、最後に Enter を送ります。複数行はそのまま順に実行されます。コード部分の**ダブルクリック**でも同じです。
-- **Insert**: 内容を入力するだけで Enter は送りません (bracketed paste で送るので、複数行でも 1 つの入力として編集できます)。
+- **Run**: sends the content exactly as shown to the terminal, followed by Enter. Multi-line blocks run line by line in order. **Double-clicking** the code does the same.
+- **Insert**: types the content without sending Enter (sent via bracketed paste, so a multi-line block can be edited as a single input).
 
-## エディタ (code-server)
+## Editor (code-server)
 
-code-server が動いていると、ヘッダー右端に **Editor** ボタンが出ます。押すと右ペインが上下に分かれて上にブラウザ版 VS Code、下にターミナルが出ます (境界はドラッグで動かせます)。もう一度押すと隠れます。既定は隠れた状態で、選択はブラウザに記憶されます。手順書の `vscode:` リンクを押すと自動で表示されます。ヘッダーの手順書名の横にある鉛筆アイコンで、いま表示している手順書そのものを VS Code で開けます。保存すると左ペインが即時更新されます。
-VS Code が開くフォルダ (ワークスペース) は既定でリポジトリのルートで、`KP2_WORKSPACE=~/src/myproject npm run dev` で変えられます。
-ターミナルとエディタは同じローカルファイルシステムを見ているので、「手順書を読む → エディタで編集 → Run で実行 → ターミナルで結果を見る」がブラウザの中で完結します。
+When code-server is running, an **Editor** button appears at the right end of the header. Pressing it splits the right pane vertically, with browser-based VS Code on top and the terminal below (drag the divider to resize). Press it again to hide the editor. It is hidden by default, and your choice is remembered by the browser. Clicking a `vscode:` link in a runbook shows the editor automatically. The pencil icon next to the runbook name in the header opens the runbook itself in VS Code; saving updates the left pane immediately.
+The folder VS Code opens (the workspace) defaults to the repository root and can be changed with `KP2_WORKSPACE=~/src/myproject npm run dev`.
+The terminal and the editor see the same local filesystem, so "read the runbook → edit in the editor → Run → check the result in the terminal" all happens inside the browser.
 
-手順書からファイルを開くには `vscode:` リンクを書きます。パスはワークスペースからの相対パスで、`#L行番号` で行を指定できます。
+To open a file from a runbook, write a `vscode:` link. The path is relative to the workspace, and `#L<line>` jumps to a line.
 
 ```markdown
-[main.rs を開く](vscode:src/main.rs#L120)
+[Open main.rs](vscode:src/main.rs#L120)
 ```
 
-クリックすると Vite の `/api/open` が `code-server -r` を実行し、動いている VS Code の該当ファイルが開きます (ページのリロードはありません)。
-code-server が動いていないときは説明が表示されるだけです。
+Clicking it makes Vite's `/api/open` run `code-server -r`, which opens the file in the running VS Code instance (no page reload).
+When code-server is not running, an explanation is shown instead.
 
-code-server のユーザーデータは `~/.local/share/kp2/code-server` (または `$XDG_DATA_HOME/kp2/code-server`) に置きます。
-`code-server -r` が既存インスタンスを見つけるための IPC ソケットがここに作られるため、短いパスである必要があります。
+code-server's user data lives in `~/.local/share/kp2/code-server` (or `$XDG_DATA_HOME/kp2/code-server`).
+The IPC socket that `code-server -r` uses to find the running instance is created there, so the path has to be short.
 
-## レイアウト
+## Layout
 
-左の手順書と右のターミナルの境界はドラッグで動かせます。幅はブラウザに記憶されます。エディタを表示しているときは、エディタとターミナルの境界も同様にドラッグできます。
+Drag the divider between the runbook on the left and the terminal on the right to resize them. The width is remembered by the browser. When the editor is shown, the divider between the editor and the terminal can be dragged the same way.
 
-## ターミナル操作
+## Terminal
 
-- 通常のキー入力、Ctrl-C などの制御キーはそのまま shell に届きます
-- コピー: 選択して Cmd+C (macOS) / Ctrl+Shift+C。ペースト: Cmd+V / Ctrl+Shift+V
-- ウィンドウ/ペインのサイズ変更に追従して PTY を resize します
-- 接続が切れた場合はターミナル上部の **Reconnect** で再接続できます
+- Ordinary key input and control keys such as Ctrl-C go straight to the shell
+- Copy: select and press Cmd+C (macOS) / Ctrl+Shift+C. Paste: Cmd+V / Ctrl+Shift+V
+- The PTY is resized to follow window and pane resizes
+- If the connection drops, press **Reconnect** at the top of the terminal
 
-## セキュリティ
+## Security
 
-このツールはローカルマシン上で任意のコマンドを実行できます。
+This tool can run arbitrary commands on your local machine.
 
-- ttyd も code-server も Vite も **127.0.0.1 のみ** にバインドします。外部ネットワークには公開しないでください。code-server は `--auth none` で起動しており、localhost 以外に公開すると誰でも操作できてしまいます
-- Run ボタンが送る内容は、画面に表示されているコードブロックの内容そのものです。隠しコマンドや変換はありません
-- Markdown を開いただけでは何も実行されません。実行は必ずボタン操作かキー入力によります
-- 認証はありません (MVP)。信頼できるローカル環境でのみ使ってください
+- ttyd, code-server and Vite all bind to **127.0.0.1 only**. Do not expose them to an external network. code-server runs with `--auth none`, so anyone who can reach it beyond localhost can control it
+- What the Run button sends is exactly the content of the code block shown on screen. There are no hidden commands or transformations
+- Merely opening a Markdown file executes nothing. Execution always requires a button click or a keystroke
+- There is no authentication (MVP). Use it only in a trusted local environment
 
-## 構成
+## Project layout
 
 ```
-docs/getting-started.md   手順書 (Markdown、デフォルトのディレクトリ)
-scripts/ttyd.sh           ttyd 起動スクリプト (localhost bind, shell 選択)
-scripts/code-server.sh    code-server 起動スクリプト (任意。未インストールなら何もしない)
-vite.config.ts            dev/preview server の localhost bind と ttyd へのプロキシ
-vite-docs-plugin.ts       任意ディレクトリの .md を配信し、変更を HMR で通知するミドルウェア
-vite-favorites-plugin.ts  favorites.json の読み書き API と変更通知
-vite-editor-plugin.ts     code-server の稼働確認 (/api/editor) とファイルを開く API (/api/open)
-src/ttyd.ts               ttyd WebSocket プロトコルの最小クライアント
+docs/getting-started.md   Runbook (Markdown, the default directory)
+scripts/ttyd.sh           Starts ttyd (localhost bind, shell selection)
+scripts/code-server.sh    Starts code-server (optional; does nothing when not installed)
+vite.config.ts            Localhost bind for the dev/preview server and the proxy to ttyd
+vite-docs-plugin.ts       Middleware that serves .md files from any directory and pushes changes over HMR
+vite-favorites-plugin.ts  Read/write API for favorites.json and change notifications
+vite-editor-plugin.ts     code-server health check (/api/editor) and the open-file API (/api/open)
+src/ttyd.ts               Minimal client for the ttyd WebSocket protocol
 src/TerminalPane.tsx      xterm.js + fit addon + resize/copy/paste
-src/Guide.tsx             Markdown レンダリングと Run / Insert ボタン
-src/docs.ts               手順書ストア (サーバー経由 / File System Access API の 2 系統)、手順書の選択、お気に入り
-src/DocsPicker.tsx        ヘッダーのフォルダ / 手順書セレクタとフォルダ選択パネル
-src/editor.ts             エディタの稼働状態、表示のオン / オフ、vscode: リンクの解釈
-src/EditorToggle.tsx      ヘッダーの Editor ボタン
-src/SplitPane.tsx         エディタ / ターミナルの上下分割 (ドラッグで比率変更)
-src/App.tsx               2 ペインレイアウト
+src/Guide.tsx             Markdown rendering and the Run / Insert buttons
+src/docs.ts               Runbook store (server-backed and File System Access API), runbook selection, favorites
+src/DocsPicker.tsx        Folder / runbook selector in the header and the folder panel
+src/editor.ts             Editor availability, show/hide state, vscode: link handling
+src/EditorToggle.tsx      The Editor button in the header
+src/SplitPane.tsx         Vertical editor / terminal split (drag to change the ratio)
+src/App.tsx               Two-pane layout
 ```
 
-## ttyd を選んだ理由
+## Why ttyd
 
-ttyd の WebSocket プロトコルは非常に単純で (先頭 1 バイトがコマンド種別、`'0'`=入力、`'1'`=resize)、
-ttyd 同梱の Web UI を使わずとも xterm.js から直接話せます。
-そのため PTY 管理・resize・シグナル処理を自前で持つ必要がなく、backend は ttyd のプロセス 1 つだけです。
+ttyd's WebSocket protocol is very simple (the first byte is the command type: `'0'` = input, `'1'` = resize),
+so xterm.js can talk to it directly without ttyd's bundled web UI.
+That means kp2 does not have to manage PTYs, resizing or signals itself; the whole backend is a single ttyd process.
