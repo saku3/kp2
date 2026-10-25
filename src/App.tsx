@@ -65,7 +65,7 @@ export function App() {
           initial={0.45}
           top={
             <section className="pane pane-guide" ref={guideRef}>
-              <Guide markdown={markdown} docName={docName} names={docs.names} varsScope={docs.label} onNavigate={selectDoc} onInsert={insert} onRun={run} />
+              <Guide markdown={markdown} docName={docName} names={docs.names} varsScope={JSON.stringify([docs.label, docName ?? ''])} onNavigate={selectDoc} onInsert={insert} onRun={run} />
             </section>
           }
           bottom={

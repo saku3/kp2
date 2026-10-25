@@ -4,8 +4,9 @@
 // Only an upper-case identifier counts (`{{CLUSTER}}`, `{{AWS_REGION}}`), so Go/Helm template
 // code such as `{{ .Values.x }}` or `{{end}}` shown in a runbook is left alone.
 //
-// Values are kept per folder in localStorage: the same cluster name is usually needed by every
-// runbook in a folder, and they must not leak to other people when kp2 runs behind a proxy.
+// Values are kept per document in localStorage, so filling in a runbook never changes what
+// another runbook in the folder runs, and they must not leak to other people when kp2 runs
+// behind a proxy.
 import { useSyncExternalStore } from 'react';
 
 export const PLACEHOLDER = /\{\{([A-Z][A-Z0-9_]*)\}\}/g;

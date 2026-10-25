@@ -13,7 +13,7 @@ interface Props {
   docName: string | null;
   /** All documents in the current folder; relative links to one of them switch documents. */
   names: string[];
-  /** Key under which `{{NAME}}` values are stored, normally the folder path. */
+  /** Key under which `{{NAME}}` values are stored, normally the folder and the document. */
   varsScope: string;
   onNavigate: (name: string) => void;
   onInsert: (command: string) => void;
