@@ -9,7 +9,8 @@
     "vite": "vite",
     "server": "cargo run --quiet --manifest-path server/Cargo.toml -- --port 7681",
     "build": "tsc --noEmit && vite build && cargo build --release --manifest-path server/Cargo.toml",
-    "start": "server/target/release/kp2"
+    "start": "server/target/release/kp2",
+    "version": "node scripts/sync-version.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",
