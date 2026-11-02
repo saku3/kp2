@@ -87,13 +87,25 @@ const dirname = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/'))
  * fzf-style match: every query character must appear in order. Consecutive hits and hits at the
  * start of a word score higher; shorter paths win ties. Null when the query does not match.
  */
-// ponytail: greedy leftmost match, not fzf's optimal alignment; good enough for a few hundred paths.
+// ponytail: tries every position for the first character, then matches the rest greedily; not
+// fzf's optimal alignment, but O(n·m) is plenty for a few hundred paths.
 export function fuzzyScore(query: string, text: string): number | null {
+  const q = query.toLowerCase().replace(/\s+/g, '');
   const t = text.toLowerCase();
+  if (q === '') return 0;
+  let best: number | null = null;
+  for (let start = t.indexOf(q[0]); start !== -1; start = t.indexOf(q[0], start + 1)) {
+    const s = scoreFrom(q, t, start);
+    if (s === null) break; // a later start cannot match either
+    if (best === null || s > best) best = s;
+  }
+  return best === null ? null : best - t.length / 1000;
+}
+
+function scoreFrom(q: string, t: string, from: number): number | null {
   let score = 0;
-  let from = 0;
   let prev = -2;
-  for (const c of query.toLowerCase().replace(/\s+/g, '')) {
+  for (const c of q) {
     const i = t.indexOf(c, from);
     if (i === -1) return null;
     score += i === prev + 1 ? 3 : 1;
@@ -101,7 +113,7 @@ export function fuzzyScore(query: string, text: string): number | null {
     prev = i;
     from = i + 1;
   }
-  return score - t.length / 1000;
+  return score;
 }
 
 /** Folder or document popover: close on outside click / Escape and focus the input when opened. */
@@ -204,11 +216,8 @@ function DocSwitcher({ names, current }: { names: string[]; current: string }) {
                     aria-current={name === current ? 'page' : undefined}
                     title={name}
                   >
-                    <DocIcon />
-                    <span className="popover-list-text">
-                      <span className="popover-list-name">{basename(name)}</span>
-                      {dirname(name) && <span className="popover-list-path">{dirname(name)}/</span>}
-                    </span>
+                    {dirname(name) && <span className="doc-dir"><bdi>{dirname(name)}/</bdi></span>}
+                    <span className="doc-file">{basename(name)}</span>
                   </button>
                 </li>
               ))}
