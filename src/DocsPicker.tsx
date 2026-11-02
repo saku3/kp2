@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { openInEditor } from './editor';
 import {
   canPickDirectory,
@@ -81,42 +81,153 @@ function shortLabel(docs: DocsState): string {
 
 const basename = (p: string) => p.split('/').filter(Boolean).pop() ?? p;
 
-/** Group "a/b/c.md" style names by their folder for <optgroup>; top-level files come first. */
-function groupByFolder(names: string[]): { folder: string; items: { name: string; file: string }[] }[] {
-  const groups = new Map<string, { name: string; file: string }[]>();
-  for (const name of names) {
-    const i = name.lastIndexOf('/');
-    const folder = i === -1 ? '' : name.slice(0, i);
-    const file = i === -1 ? name : name.slice(i + 1);
-    (groups.get(folder) ?? groups.set(folder, []).get(folder)!).push({ name, file });
+const dirname = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
+
+/**
+ * fzf-style match: every query character must appear in order. Consecutive hits and hits at the
+ * start of a word score higher; shorter paths win ties. Null when the query does not match.
+ */
+// ponytail: greedy leftmost match, not fzf's optimal alignment; good enough for a few hundred paths.
+export function fuzzyScore(query: string, text: string): number | null {
+  const t = text.toLowerCase();
+  let score = 0;
+  let from = 0;
+  let prev = -2;
+  for (const c of query.toLowerCase().replace(/\s+/g, '')) {
+    const i = t.indexOf(c, from);
+    if (i === -1) return null;
+    score += i === prev + 1 ? 3 : 1;
+    if (i === 0 || '/_-. '.includes(t[i - 1])) score += 2;
+    prev = i;
+    from = i + 1;
   }
-  return [...groups].sort(([a], [b]) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))).map(([folder, items]) => ({ folder, items }));
+  return score - t.length / 1000;
 }
 
-export function DocsPicker({ docs, canEdit }: Props) {
-  const [open, setOpen] = useState(false);
-  const [input, setInput] = useState('');
+/** Folder or document popover: close on outside click / Escape and focus the input when opened. */
+function useDismiss(open: boolean, close: () => void) {
   const popRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const recents = getRecentDirs().filter((d) => d !== docs.label);
-  const folderFav = currentFavorite(false);
-  const docFav = currentFavorite(true);
-
-  // Close on outside click / Escape; focus the input when opened.
   useEffect(() => {
     if (!open) return;
     inputRef.current?.focus();
     const onDown = (e: MouseEvent) => {
-      if (!popRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!popRef.current?.contains(e.target as Node)) close();
     };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [open]);
+  }, [open, close]);
+  return { popRef, inputRef };
+}
+
+/** Document switcher: type to filter the folder's documents fzf-style, ↑/↓ to move, Enter to open. */
+function DocSwitcher({ names, current }: { names: string[]; current: string }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState(0);
+  const close = useCallback(() => setOpen(false), []);
+  const { popRef, inputRef } = useDismiss(open, close);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  const matches = query.trim()
+    ? names
+        .map((name) => ({ name, score: fuzzyScore(query, name) }))
+        .filter((m): m is { name: string; score: number } => m.score !== null)
+        .sort((a, b) => b.score - a.score)
+        .map((m) => m.name)
+    : names;
+
+  useEffect(() => {
+    listRef.current?.children[active]?.scrollIntoView({ block: 'nearest' });
+  }, [active, open]);
+
+  const toggle = () => {
+    if (!open) {
+      setQuery('');
+      setActive(Math.max(0, names.indexOf(current)));
+    }
+    setOpen(!open);
+  };
+  const choose = (name: string | undefined) => {
+    if (name === undefined) return;
+    selectDoc(name);
+    setOpen(false);
+  };
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      setActive((a) => (matches.length ? (a + step + matches.length) % matches.length : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      choose(matches[active]);
+    }
+  };
+
+  return (
+    <div className="crumb-wrap" ref={popRef}>
+      <button className={`crumb${open ? ' is-open' : ''}`} onClick={toggle} title={current} aria-expanded={open}>
+        <span className="crumb-text">{current}</span>
+        <Chevron />
+      </button>
+      {open && (
+        <div className="popover doc-switcher" role="dialog" aria-label="Choose document">
+          <div className="popover-form">
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setActive(0);
+              }}
+              onKeyDown={onKeyDown}
+              placeholder="Filter documents"
+              spellCheck={false}
+              aria-label="Filter documents"
+            />
+          </div>
+          {matches.length === 0 ? (
+            <p className="popover-notice">No matching documents</p>
+          ) : (
+            <ul className="popover-list" ref={listRef}>
+              {matches.map((name, i) => (
+                <li key={name} className={`popover-row${i === active ? ' is-active' : ''}`}>
+                  <button
+                    type="button"
+                    onClick={() => choose(name)}
+                    onMouseMove={() => setActive(i)}
+                    aria-current={name === current ? 'page' : undefined}
+                    title={name}
+                  >
+                    <DocIcon />
+                    <span className="popover-list-text">
+                      <span className="popover-list-name">{basename(name)}</span>
+                      {dirname(name) && <span className="popover-list-path">{dirname(name)}/</span>}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DocsPicker({ docs, canEdit }: Props) {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const close = useCallback(() => setOpen(false), []);
+  const { popRef, inputRef } = useDismiss(open, close);
+  const recents = getRecentDirs().filter((d) => d !== docs.label);
+  const folderFav = currentFavorite(false);
+  const docFav = currentFavorite(true);
 
   // Close once a new folder has loaded successfully.
   useEffect(() => {
@@ -221,21 +332,7 @@ export function DocsPicker({ docs, canEdit }: Props) {
       {docs.names.length > 0 && docs.docName && (
         <>
           <span className="crumb-sep" aria-hidden="true">/</span>
-          <label className="crumb crumb-select">
-            <span className="crumb-text">{docs.docName}</span>
-            <Chevron />
-            <select value={docs.docName} onChange={(e) => selectDoc(e.target.value)} aria-label="Document">
-              {groupByFolder(docs.names).map(({ folder, items }) =>
-                folder === '' ? (
-                  items.map(({ name, file }) => <option key={name} value={name}>{file}</option>)
-                ) : (
-                  <optgroup key={folder} label={folder + '/'}>
-                    {items.map(({ name, file }) => <option key={name} value={name}>{file}</option>)}
-                  </optgroup>
-                ),
-              )}
-            </select>
-          </label>
+          <DocSwitcher names={docs.names} current={docs.docName} />
           <StarButton fav={docFav} what="this document" />
           {canEdit && docs.source?.kind === 'server' && (
             <button
