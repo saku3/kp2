@@ -3,8 +3,7 @@
 //!
 //! Routes
 //!   GET  /token, GET /ws           terminal (WebSocket wire protocol, see pty.rs)
-//!   GET  /api/docs, /api/doc       markdown from any local folder (docs.rs)
-//!   GET  /api/asset                images referenced from those documents (docs.rs)
+//!   GET  /api/docs, /api/doc       markdown (and its images) from any local folder (docs.rs)
 //!   GET/PUT /api/favorites         pinned folders / documents (favorites.rs)
 //!   GET  /api/editor, POST /api/open   code-server integration (editor.rs)
 //!   GET  /api/events               server-sent events: docs:changed, favorites:changed
@@ -116,7 +115,6 @@ async fn main() {
         .route("/ws", get(pty::ws_handler))
         .route("/api/docs", get(docs::list))
         .route("/api/doc", get(docs::read))
-        .route("/api/asset", get(docs::asset))
         .route(
             "/api/favorites",
             get(favorites::get_all).put(favorites::put_all),

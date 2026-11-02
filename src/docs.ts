@@ -294,7 +294,7 @@ export async function assetUrl(name: string): Promise<string> {
   const source = store.state.source;
   if (!source) throw new Error('No folder opened');
   if (source.kind === 'server') {
-    return `/api/asset?dir=${encodeURIComponent(source.dir)}&name=${encodeURIComponent(name)}`;
+    return `/api/doc?dir=${encodeURIComponent(source.dir)}&name=${encodeURIComponent(name)}`;
   }
   const parts = name.split('/');
   let dir = source.handle;
