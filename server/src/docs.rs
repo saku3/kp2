@@ -16,7 +16,7 @@ use serde_json::json;
 use std::{
     collections::{BTreeSet, HashMap},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
 };
 
 const SKIP_DIRS: &[&str] = &["node_modules", ".git"];
@@ -68,7 +68,23 @@ pub async fn list(
     let mut names = BTreeSet::new();
     list_markdown(&dir, Path::new(""), &mut names).map_err(ApiError::internal)?;
     state.watcher.watch_docs(&dir);
-    Ok(Json(json!({ "dir": dir, "names": names })))
+    Ok(Json(
+        json!({ "dir": dir, "names": names, "host": host_name() }),
+    ))
+}
+
+/// The machine kp2 runs on. A typed path opens there, which is not the browser's machine when
+/// kp2 is reached through an SSH tunnel, so the UI names it.
+fn host_name() -> &'static str {
+    static HOST: OnceLock<String> = OnceLock::new();
+    HOST.get_or_init(|| {
+        std::process::Command::new("hostname")
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_owned())
+            .unwrap_or_default()
+    })
 }
 
 /// GET /api/doc?dir=<path>&name=<relative.md> -> text/markdown

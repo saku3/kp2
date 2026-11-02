@@ -35,6 +35,8 @@ export interface DocsState {
   favorites: Favorite[];
   /** Where favorites are stored on disk (shown in the UI so it can be edited by hand). */
   favoritesPath: string;
+  /** Host name of the machine kp2 runs on, where typed paths are opened; '' until known. */
+  host: string;
 }
 
 interface Store {
@@ -66,6 +68,7 @@ const initialState: DocsState = {
   notice: null,
   favorites: [],
   favoritesPath: '',
+  host: '',
 };
 
 const store: Store = import.meta.hot?.data.store ?? {
@@ -175,7 +178,7 @@ export async function openServerDir(dir: string, doc?: string): Promise<void> {
     const body = await res.json();
     if (!res.ok) throw new Error(body.error ?? res.statusText);
     const source: DocsSource = { kind: 'server', dir: body.dir };
-    setState({ source, label: body.dir, contents: {}, loading: false });
+    setState({ source, label: body.dir, contents: {}, loading: false, host: body.host ?? '' });
     setNames(body.names);
     pushRecentDir(body.dir);
     localStorage.setItem(LS_SOURCE, JSON.stringify({ kind: 'server', dir: body.dir }));
