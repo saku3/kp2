@@ -16,25 +16,42 @@ interface Props {
   /** Key under which `{{NAME}}` values are stored, normally the folder and the document. */
   varsScope: string;
   onNavigate: (name: string) => void;
+  /** URL for a file in the folder (relative path), used for images; see assetUrl in docs.ts. */
+  resolveAsset: (name: string) => Promise<string>;
   onInsert: (command: string) => void;
   onRun: (command: string) => void;
 }
 
-/** Resolve an href relative to the current document within the folder; null if it is not a local .md file. */
-export function resolveDocLink(docName: string | null, href: string): string | null {
+/**
+ * Resolve a relative URL against the current document, giving a path within the folder.
+ * Null for absolute URLs, fragments and root-relative paths. A path that leaves the folder is
+ * returned as-is (still containing ".."), so it never matches a file in the folder.
+ */
+export function resolveRelative(docName: string | null, href: string): string | null {
   if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('/') || href.startsWith('#')) return null;
   const path = href.split(/[?#]/)[0];
-  if (!path.endsWith('.md')) return null;
+  if (path === '') return null;
   const base = docName?.includes('/') ? docName.slice(0, docName.lastIndexOf('/')).split('/') : [];
   const out = [...base];
   for (const seg of path.split('/')) {
     if (seg === '' || seg === '.') continue;
     if (seg === '..') {
-      if (out.length === 0) return path; // escapes the folder: reported as-is (never in `names`)
+      if (out.length === 0) return path; // escapes the folder
       out.pop();
     } else out.push(seg);
   }
-  return decodeURIComponent(out.join('/'));
+  try {
+    return decodeURIComponent(out.join('/'));
+  } catch {
+    return out.join('/');
+  }
+}
+
+/** Resolve an href relative to the current document within the folder; null if it is not a local .md file. */
+export function resolveDocLink(docName: string | null, href: string): string | null {
+  const path = href.split(/[?#]/)[0];
+  if (!path.endsWith('.md')) return null;
+  return resolveRelative(docName, href);
 }
 
 // The custom renderers reach the current document and callbacks through context rather than
@@ -48,6 +65,7 @@ const GuideContext = createContext<GuideContextValue>({
   names: [],
   varsScope: '',
   onNavigate: () => {},
+  resolveAsset: (name) => Promise.resolve(name),
   onInsert: () => {},
   onRun: () => {},
 });
@@ -251,16 +269,51 @@ function GuideLink({ href = '', children, node: _node, ...rest }: ComponentProps
   );
 }
 
-const components: Components = { a: GuideLink, pre: GuidePre };
+/**
+ * An image whose src is relative to the document. The browser would resolve it against the
+ * page URL, so it is looked up in the document's folder instead (server API or picked folder).
+ */
+function GuideImage({ src, node: _node, ...rest }: ComponentProps<'img'> & ExtraProps) {
+  const { docName, resolveAsset } = useContext(GuideContext);
+  const raw = typeof src === 'string' ? src : '';
+  const target = resolveRelative(docName, raw);
+  const local = target !== null && !target.split('/').includes('..');
+  const [resolved, setResolved] = useState<string | null>(null);
+  useEffect(() => {
+    if (!local) return;
+    let cancelled = false;
+    let url: string | null = null;
+    resolveAsset(target)
+      .then((u) => {
+        url = u;
+        if (cancelled) {
+          if (u.startsWith('blob:')) URL.revokeObjectURL(u);
+        } else setResolved(u);
+      })
+      .catch(() => {
+        if (!cancelled) setResolved(raw); // leave it broken, with the original path visible in devtools
+      });
+    return () => {
+      cancelled = true;
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
+      setResolved(null);
+    };
+  }, [local, target, raw, resolveAsset]);
+  if (!local) return <img {...rest} src={raw} />;
+  if (resolved === null) return <img {...rest} />;
+  return <img {...rest} src={resolved} />;
+}
+
+const components: Components = { a: GuideLink, pre: GuidePre, img: GuideImage };
 
 // Keep our own "vscode:" links; everything else gets react-markdown's default sanitizing.
 const urlTransform = (url: string) => (url.startsWith('vscode:') ? url : defaultUrlTransform(url));
 
 const remarkPlugins = [remarkGfm, remarkBr];
 
-export function Guide({ markdown, docName, names, varsScope, onNavigate, onInsert, onRun }: Props) {
+export function Guide({ markdown, docName, names, varsScope, onNavigate, resolveAsset, onInsert, onRun }: Props) {
   return (
-    <GuideContext.Provider value={{ docName, names, varsScope, onNavigate, onInsert, onRun }}>
+    <GuideContext.Provider value={{ docName, names, varsScope, onNavigate, resolveAsset, onInsert, onRun }}>
       <article className="guide">
         <Markdown remarkPlugins={remarkPlugins} urlTransform={urlTransform} components={components}>
           {markdown}

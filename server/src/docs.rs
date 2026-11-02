@@ -95,6 +95,53 @@ pub async fn read(
         .into_response())
 }
 
+/// Image types `/api/asset` serves. Only images: documents reference them with `![](...)`, and
+/// limiting the endpoint to them keeps it from becoming a general file reader.
+const ASSET_EXTS: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "svg", "webp", "avif", "bmp", "ico",
+];
+
+fn is_asset(name: &str) -> bool {
+    Path::new(name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| ASSET_EXTS.contains(&e.to_ascii_lowercase().as_str()))
+}
+
+/// GET /api/asset?dir=<path>&name=<relative image path> -> the image
+///
+/// Serves images referenced from documents (`![](img/foo.png)`), resolved by the client
+/// relative to the document. The file must be inside the folder.
+pub async fn asset(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<DirQuery>,
+) -> Result<Response, ApiError> {
+    let dir = resolve_dir(&state, &q)?;
+    let name = q.name.as_deref().unwrap_or("");
+    let full = normalize(&dir.join(name));
+    if !is_asset(name) || name.contains('\0') || !full.starts_with(&dir) || full == dir {
+        return Err(ApiError::bad("Invalid asset name"));
+    }
+    let data = tokio::fs::read(&full)
+        .await
+        .map_err(|_| ApiError::not_found(format!("Not found: {}", full.display())))?;
+    let mime = mime_guess::from_path(&full).first_or_octet_stream();
+    Ok((
+        [
+            (header::CONTENT_TYPE, mime.as_ref()),
+            (header::CACHE_CONTROL, "no-cache"),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+            // An SVG opened directly would otherwise run its scripts on this origin.
+            (
+                header::CONTENT_SECURITY_POLICY,
+                "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+            ),
+        ],
+        data,
+    )
+        .into_response())
+}
+
 /// Watches document folders (recursively) and the favorites file, publishing to the event hub.
 ///
 /// Paths are compared in canonical form: macOS FSEvents reports the real path (`/private/tmp/x`)
@@ -187,5 +234,20 @@ impl Watcher {
                 .unwrap_or_else(|| file.to_path_buf());
             *self.favorites.lock().unwrap() = Some((file.to_path_buf(), canon));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_asset;
+
+    #[test]
+    fn asset_extensions() {
+        assert!(is_asset("img/a.png"));
+        assert!(is_asset("A.JPG"));
+        assert!(is_asset("diagram.svg"));
+        assert!(!is_asset("notes.md"));
+        assert!(!is_asset(".env"));
+        assert!(!is_asset("id_rsa"));
     }
 }

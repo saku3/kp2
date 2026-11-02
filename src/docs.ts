@@ -286,6 +286,23 @@ export async function loadDoc(name: string, force = false): Promise<void> {
   }
 }
 
+/**
+ * A URL the browser can load for a file (an image) in the current folder, given its path
+ * relative to the folder. For a picked folder this is an object URL; the caller revokes it.
+ */
+export async function assetUrl(name: string): Promise<string> {
+  const source = store.state.source;
+  if (!source) throw new Error('No folder opened');
+  if (source.kind === 'server') {
+    return `/api/asset?dir=${encodeURIComponent(source.dir)}&name=${encodeURIComponent(name)}`;
+  }
+  const parts = name.split('/');
+  let dir = source.handle;
+  for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
+  const file = await (await dir.getFileHandle(parts[parts.length - 1])).getFile();
+  return URL.createObjectURL(file);
+}
+
 async function refreshServerList(dir: string): Promise<void> {
   const res = await fetch(`/api/docs?dir=${encodeURIComponent(dir)}`);
   if (!res.ok) return;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { getDocsState, selectDoc, subscribeDocs } from './docs';
+import { assetUrl, getDocsState, selectDoc, subscribeDocs } from './docs';
 import { DocsPicker } from './DocsPicker';
 import { useEditor, useEditorShown } from './editor';
 import { EditorToggle } from './EditorToggle';
@@ -65,7 +65,7 @@ export function App() {
           initial={0.45}
           top={
             <section className="pane pane-guide" ref={guideRef}>
-              <Guide markdown={markdown} docName={docName} names={docs.names} varsScope={JSON.stringify([docs.label, docName ?? ''])} onNavigate={selectDoc} onInsert={insert} onRun={run} />
+              <Guide markdown={markdown} docName={docName} names={docs.names} varsScope={JSON.stringify([docs.label, docName ?? ''])} onNavigate={selectDoc} resolveAsset={assetUrl} onInsert={insert} onRun={run} />
             </section>
           }
           bottom={
