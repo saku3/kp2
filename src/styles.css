@@ -41,6 +41,7 @@ html, body, #root { height: 100%; margin: 0; }
 .guide :not(pre) > code { background: var(--code-bg); padding: .15em .35em; border-radius: 4px; }
 /* A wide table scrolls by itself instead of forcing the whole pane to scroll sideways. */
 .guide table { border-collapse: collapse; display: block; width: max-content; max-width: 100%; overflow-x: auto; }
+.guide img { max-width: 100%; height: auto; }
 .guide th, .guide td { border: 1px solid var(--border); padding: 4px 10px; }
 .guide a { color: #0969da; }
 .guide blockquote { margin: 0 0 16px; padding: 0 1em; color: var(--muted); border-left: .25em solid var(--border); }
