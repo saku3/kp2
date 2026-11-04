@@ -1,6 +1,7 @@
 import { createContext, isValidElement, useContext, useEffect, useMemo, useState, type ComponentProps, type ReactNode, type SyntheticEvent } from 'react';
 import Markdown, { defaultUrlTransform, type Components, type ExtraProps } from 'react-markdown';
 import { openInEditor, parseEditorLink } from './editor';
+import { MermaidBlock } from './Mermaid';
 import remarkGfm from 'remark-gfm';
 import remarkAlert from './remark-alert';
 import remarkBr from './remark-br';
@@ -207,6 +208,7 @@ function parsePreChild(children: ReactNode): { lang: string; code: string } | nu
 function GuidePre({ children }: ComponentProps<'pre'> & ExtraProps) {
   const parsed = parsePreChild(children);
   if (!parsed) return <pre>{children}</pre>;
+  if (parsed.lang === 'mermaid') return <MermaidBlock code={parsed.code.replace(/\n$/, '')} />;
   return <CodeBlock {...parsed} />;
 }
 

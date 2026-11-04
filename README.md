@@ -128,6 +128,8 @@ GitHub-style alerts (`> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, 
 
 Relative image paths (`![Diagram](./img/arch.png)`) are resolved from the runbook too, and images inside the same folder (png / jpg / gif / svg / webp / avif) are shown.
 
+` ```mermaid ` code blocks are drawn as [Mermaid](https://mermaid.js.org/) diagrams. On a syntax error the source is shown along with the error message.
+
 The server only serves `.md` files under the chosen directory; `..` and similar tricks cannot escape it.
 
 Every code block has a **Copy** button that copies its content to the clipboard.
