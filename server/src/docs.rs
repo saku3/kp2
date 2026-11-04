@@ -87,7 +87,25 @@ fn host_name() -> &'static str {
     })
 }
 
-/// GET /api/doc?dir=<path>&name=<relative.md> -> text/markdown
+/// Content type of a file `/api/doc` serves: documents, and the images they reference with
+/// `![](...)`. Anything else is refused, so the endpoint never becomes a general file reader.
+fn content_type(name: &str) -> Option<&'static str> {
+    let ext = Path::new(name).extension()?.to_str()?.to_ascii_lowercase();
+    Some(match ext.as_str() {
+        "md" => "text/markdown; charset=utf-8",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        _ => return None,
+    })
+}
+
+/// GET /api/doc?dir=<path>&name=<relative path> -> a document (text/markdown), or an image
+/// it references (resolved by the client relative to the document). The file must be inside
+/// the folder.
 pub async fn read(
     State(state): State<Arc<AppState>>,
     Query(q): Query<DirQuery>,
@@ -95,18 +113,21 @@ pub async fn read(
     let dir = resolve_dir(&state, &q)?;
     let name = q.name.as_deref().unwrap_or("");
     let full = normalize(&dir.join(name));
-    if !name.ends_with(".md") || name.contains('\0') || !full.starts_with(&dir) || full == dir {
-        return Err(ApiError::bad("Invalid document name"));
-    }
-    let text = tokio::fs::read_to_string(&full)
+    let content_type = content_type(name)
+        .filter(|_| !name.contains('\0') && full.starts_with(&dir) && full != dir)
+        .ok_or_else(|| ApiError::bad("Invalid document name"))?;
+    let data = tokio::fs::read(&full)
         .await
         .map_err(|_| ApiError::not_found(format!("Not found: {}", full.display())))?;
     Ok((
         [
-            (header::CONTENT_TYPE, "text/markdown; charset=utf-8"),
+            (header::CONTENT_TYPE, content_type),
             (header::CACHE_CONTROL, "no-store"),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+            // An SVG opened directly would otherwise run its scripts on this origin.
+            (header::CONTENT_SECURITY_POLICY, "sandbox"),
         ],
-        text,
+        data,
     )
         .into_response())
 }
@@ -203,5 +224,21 @@ impl Watcher {
                 .unwrap_or_else(|| file.to_path_buf());
             *self.favorites.lock().unwrap() = Some((file.to_path_buf(), canon));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::content_type;
+
+    #[test]
+    fn served_types() {
+        assert_eq!(content_type("a/b.md"), Some("text/markdown; charset=utf-8"));
+        assert_eq!(content_type("img/a.png"), Some("image/png"));
+        assert_eq!(content_type("A.JPG"), Some("image/jpeg"));
+        assert_eq!(content_type("diagram.svg"), Some("image/svg+xml"));
+        assert_eq!(content_type(".env"), None);
+        assert_eq!(content_type("id_rsa"), None);
+        assert_eq!(content_type("notes.txt"), None);
     }
 }
