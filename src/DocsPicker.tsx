@@ -101,6 +101,9 @@ export function DocsPicker({ docs, canEdit }: Props) {
   const recents = getRecentDirs().filter((d) => d !== docs.label);
   const folderFav = currentFavorite(false);
   const docFav = currentFavorite(true);
+  const serverName = docs.host || 'the kp2 server';
+  const currentLabel =
+    docs.source?.kind === 'fs' ? `${docs.label} (this computer)` : docs.host ? `${docs.host}:${docs.label}` : docs.label;
 
   // Close on outside click / Escape; focus the input when opened.
   useEffect(() => {
@@ -134,7 +137,7 @@ export function DocsPicker({ docs, canEdit }: Props) {
         <button
           className={`crumb${open ? ' is-open' : ''}`}
           onClick={() => setOpen((o) => !o)}
-          title={docs.label || 'Choose a folder'}
+          title={currentLabel || 'Choose a folder'}
           aria-expanded={open}
         >
           <FolderIcon />
@@ -146,11 +149,14 @@ export function DocsPicker({ docs, canEdit }: Props) {
           <div className="popover" role="dialog" aria-label="Choose folder">
             {docs.label && (
               <div className="popover-current">
-                <span className="popover-current-path" title={docs.label}>{docs.label}</span>
+                <span className="popover-current-path" title={currentLabel}>
+                  {docs.source?.kind === 'fs' ? currentLabel : docs.label}
+                </span>
                 <StarButton fav={folderFav} what="this folder" />
               </div>
             )}
 
+            <h3 className="popover-group">Folders on {serverName}</h3>
             <form className="popover-form" onSubmit={submit}>
               <input
                 ref={inputRef}
@@ -204,15 +210,20 @@ export function DocsPicker({ docs, canEdit }: Props) {
               </section>
             )}
 
-            {docs.pendingHandle && (
-              <button type="button" className="popover-action" onClick={() => void reopenPendingHandle()}>
-                Re-open “{docs.pendingHandle.name}”
-              </button>
-            )}
-            {canPickDirectory() && (
-              <button type="button" className="popover-action" onClick={() => void pickDirectory()}>
-                Choose folder…
-              </button>
+            {(docs.pendingHandle || canPickDirectory()) && (
+              <section className="popover-local">
+                <h3 className="popover-group">Folders on this computer</h3>
+                {docs.pendingHandle && (
+                  <button type="button" className="popover-action" onClick={() => void reopenPendingHandle()}>
+                    Re-open “{docs.pendingHandle.name}”
+                  </button>
+                )}
+                {canPickDirectory() && (
+                  <button type="button" className="popover-action" onClick={() => void pickDirectory()}>
+                    Choose folder…
+                  </button>
+                )}
+              </section>
             )}
           </div>
         )}

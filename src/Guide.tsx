@@ -3,6 +3,7 @@ import Markdown, { defaultUrlTransform, type Components, type ExtraProps } from 
 import { openInEditor, parseEditorLink } from './editor';
 import { MermaidBlock } from './Mermaid';
 import remarkGfm from 'remark-gfm';
+import remarkAlert from './remark-alert';
 import remarkBr from './remark-br';
 import { missingVars, setVar, splitPlaceholders, substitute, useVars } from './vars';
 
@@ -258,7 +259,7 @@ const components: Components = { a: GuideLink, pre: GuidePre };
 // Keep our own "vscode:" links; everything else gets react-markdown's default sanitizing.
 const urlTransform = (url: string) => (url.startsWith('vscode:') ? url : defaultUrlTransform(url));
 
-const remarkPlugins = [remarkGfm, remarkBr];
+const remarkPlugins = [remarkGfm, remarkBr, remarkAlert];
 
 export function Guide({ markdown, docName, names, varsScope, onNavigate, onInsert, onRun }: Props) {
   return (
