@@ -56,6 +56,14 @@ export function resolveDocLink(docName: string | null, href: string): string | n
   return resolveRelative(docName, href);
 }
 
+/** A link to a folder opens its README.md, as on GitHub; null if there is none. */
+export function resolveDirLink(docName: string | null, href: string, names: string[]): string | null {
+  const dir = resolveRelative(docName, href);
+  if (dir === null) return null;
+  const readme = dir === '' ? 'README.md' : `${dir}/README.md`;
+  return names.includes(readme) ? readme : null;
+}
+
 // The custom renderers reach the current document and callbacks through context rather than
 // closures, so the `components` object below is created once. react-markdown identifies a
 // component by function identity; a renderer created per render would make React unmount and
@@ -232,7 +240,7 @@ function GuideLink({ href = '', children, node: _node, ...rest }: ComponentProps
       </a>
     );
   }
-  const target = resolveDocLink(docName, href);
+  const target = resolveDocLink(docName, href) ?? resolveDirLink(docName, href, names);
   if (target !== null && !names.includes(target)) {
     // A .md link that cannot be followed: either it leaves the folder (resolveDocLink reports
     // the raw path, still containing "..") or the file is not in the folder. Keep the link text
