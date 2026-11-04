@@ -41,8 +41,24 @@ html, body, #root { height: 100%; margin: 0; }
 .guide :not(pre) > code { background: var(--code-bg); padding: .15em .35em; border-radius: 4px; }
 /* A wide table scrolls by itself instead of forcing the whole pane to scroll sideways. */
 .guide table { border-collapse: collapse; display: block; width: max-content; max-width: 100%; overflow-x: auto; }
+.guide img { max-width: 100%; height: auto; }
 .guide th, .guide td { border: 1px solid var(--border); padding: 4px 10px; }
 .guide a { color: #0969da; }
+.guide blockquote { margin: 0 0 16px; padding: 0 1em; color: var(--muted); border-left: .25em solid var(--border); }
+/* GitHub-style alerts: > [!NOTE] etc. (remark-alert.ts) */
+.guide .markdown-alert { margin: 0 0 16px; padding: .5em 1em; border-left: .25em solid var(--alert-color); }
+.guide .markdown-alert > :first-child { margin-top: 0; }
+.guide .markdown-alert > :last-child { margin-bottom: 0; }
+.guide .markdown-alert-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 500; color: var(--alert-color); }
+.guide .markdown-alert-title::before {
+  content: ""; width: 16px; height: 16px; flex: none; background: currentColor;
+  -webkit-mask: var(--alert-icon) center / contain no-repeat; mask: var(--alert-icon) center / contain no-repeat;
+}
+.guide .markdown-alert-note { --alert-color: #0969da; --alert-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='none' stroke='black' stroke-width='1.5'/%3E%3Crect x='7.25' y='7' width='1.5' height='5' rx='.75'/%3E%3Ccircle cx='8' cy='4.75' r='1'/%3E%3C/svg%3E"); }
+.guide .markdown-alert-tip { --alert-color: #1a7f37; --alert-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.5a4.5 4.5 0 0 0-2.6 8.2c.4.3.6.7.6 1.1v.7h4v-.7c0-.4.2-.8.6-1.1A4.5 4.5 0 0 0 8 1.5Z' fill='none' stroke='black' stroke-width='1.5'/%3E%3Crect x='6' y='13' width='4' height='1.5' rx='.75'/%3E%3C/svg%3E"); }
+.guide .markdown-alert-important { --alert-color: #8250df; --alert-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 2h11a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H8l-3.5 2.5V12h-2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Crect x='7.25' y='4' width='1.5' height='4' rx='.75'/%3E%3Ccircle cx='8' cy='9.75' r='.9'/%3E%3C/svg%3E"); }
+.guide .markdown-alert-warning { --alert-color: #9a6700; --alert-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.75 14.75 14H1.25Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Crect x='7.25' y='6' width='1.5' height='4' rx='.75'/%3E%3Ccircle cx='8' cy='11.75' r='.9'/%3E%3C/svg%3E"); }
+.guide .markdown-alert-caution { --alert-color: #cf222e; --alert-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5.2 1.25h5.6l3.95 3.95v5.6l-3.95 3.95H5.2l-3.95-3.95V5.2Z' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'/%3E%3Crect x='7.25' y='4.5' width='1.5' height='4.5' rx='.75'/%3E%3Ccircle cx='8' cy='11' r='.9'/%3E%3C/svg%3E"); }
 /* A link to a runbook that cannot be followed: keep the text readable with a dotted underline in
    the warning colour, and show the reason in a small tooltip only while hovered. */
 .guide a.link-missing { color: var(--warn-fg); text-decoration: underline dotted; text-underline-offset: 3px; cursor: not-allowed; }
@@ -167,6 +183,9 @@ html, body, #root { height: 100%; margin: 0; }
   font: inherit; color: #0969da; cursor: pointer;
 }
 .popover-action:hover { background: var(--hover); }
+.popover-group { margin: 0 0 6px 4px; font-size: 11.5px; font-weight: 600; }
+.popover-local { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.popover-local .popover-action { margin-top: 0; border-top: 0; border-radius: 6px; }
 
 /* Small icon buttons in the header (edit) */
 .icon-button {
