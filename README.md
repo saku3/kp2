@@ -126,6 +126,8 @@ Links that leave the folder or point to a missing file are shown with a striketh
 
 GitHub-style alerts (`> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`) are rendered as coloured callouts.
 
+` ```mermaid ` code blocks are drawn as [Mermaid](https://mermaid.js.org/) diagrams. On a syntax error the source is shown along with the error message.
+
 The server only serves `.md` files under the chosen directory; `..` and similar tricks cannot escape it.
 
 Every code block has a **Copy** button that copies its content to the clipboard.
