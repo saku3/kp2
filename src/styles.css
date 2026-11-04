@@ -136,8 +136,14 @@ html, body, #root { height: 100%; margin: 0; }
 .crumb svg { color: var(--muted); flex: none; }
 .crumb-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .crumb-sep { color: #c3c8ce; padding: 0 2px; }
-.crumb-select { position: relative; }
-.crumb-select select { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.doc-switcher .popover-list { max-height: min(60vh, 420px); overflow-y: auto; margin-top: 8px; }
+.doc-switcher .popover-row.is-active > button:first-child { background: var(--hover); }
+/* The folder tells documents apart (most are README.md), so it leads; it truncates from the left so the nearest folder stays visible. */
+.doc-switcher .popover-row > button:first-child { gap: 0; font-family: Menlo, "SF Mono", Monaco, monospace; font-size: 12px; }
+.doc-switcher .doc-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; }
+.doc-switcher .doc-file { flex: none; color: var(--muted); }
+.doc-switcher .doc-file:first-child { color: inherit; }
+.doc-switcher [aria-current] .doc-dir, .doc-switcher [aria-current] .doc-file { color: #0969da; }
 
 .popover {
   position: absolute; top: 34px; left: 0; z-index: 10; width: 380px;
