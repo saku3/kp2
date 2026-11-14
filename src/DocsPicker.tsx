@@ -171,6 +171,7 @@ function DocSwitcher({ names, current }: { names: string[]; current: string }) {
     setOpen(false);
   };
   const onKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       const step = e.key === 'ArrowDown' ? 1 : -1;
